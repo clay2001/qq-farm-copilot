@@ -43,6 +43,7 @@ TEMPLATE_CATEGORIES = {
 
 class CVDetector:
     """基于OpenCV模板匹配的游戏UI检测器"""
+    SEED_DETECT_ROI: tuple[int, int, int, int] = (40, 500, 490, 920)
 
     def __init__(self, templates_dir: str = "templates"):
         self._templates_dir = templates_dir
@@ -205,11 +206,11 @@ class CVDetector:
         screenshot: np.ndarray,
         crop_name_or_template: str,
         threshold: float = 0.6,
-        roi: tuple[int, int, int, int] = (40, 630, 490, 720),
+        roi: tuple[int, int, int, int] | None = None,
     ) -> list[DetectResult]:
         """Seed 专用识别：
         - 固定参数：color + tpl_interp=AREA + mask_interp=NEAREST
-        - 固定范围：ROI=(40,630)-(490,720)
+        - 默认范围：SEED_DETECT_ROI
         - 缩放策略：先 0.75，若无命中再尝试 0.70/0.80
         """
         if not self._loaded:
@@ -239,7 +240,7 @@ class CVDetector:
             return []
 
         h, w = screenshot.shape[:2]
-        x1, y1, x2, y2 = roi
+        x1, y1, x2, y2 = roi if roi is not None else self.SEED_DETECT_ROI
         x1 = max(0, min(int(x1), w - 1))
         y1 = max(0, min(int(y1), h - 1))
         x2 = max(x1 + 1, min(int(x2), w))
