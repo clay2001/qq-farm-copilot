@@ -49,6 +49,8 @@ class CVDetector:
         self._templates_dir = templates_dir
         self._templates: dict[str, list[dict]] = {}  # category -> [{name, image, mask}]
         self._loaded = False
+        # 详细模板探测日志默认关闭；需要时可设置环境变量 QFARM_TEMPLATE_PROBE_LOG=1
+        # self._probe_log_enabled = os.environ.get("QFARM_TEMPLATE_PROBE_LOG", "0") == "1"
 
     def load_templates(self):
         """加载所有模板图片"""
@@ -106,6 +108,7 @@ class CVDetector:
                 self._templates[category].append({
                     "name": name,
                     "image": template,
+                    "gray": cv2.cvtColor(template, cv2.COLOR_BGR2GRAY),
                     "mask": mask,
                     "category": category,
                 })
@@ -340,14 +343,15 @@ class CVDetector:
         return fallback_results
 
 
-    @staticmethod
-    def _log_template_probe(template_name: str,
+    def _log_template_probe(self, template_name: str,
                             threshold: float,
                             best_score: float,
                             hit_count: int) -> None:
+        # if not self._probe_log_enabled:
+        #     return
         logger.debug(
-            f"模板识别: 模板={template_name}, 阈值={threshold:.3f}, "
-            f"最大分数={best_score:.3f}, 命中数={int(hit_count)}"
+            "模板识别: 模板={}, 阈值={:.3f}, 最大分数={:.3f}, 命中数={}",
+            template_name, threshold, best_score, int(hit_count)
         )
 
     def _match_template(self, screenshot: np.ndarray,
@@ -368,12 +372,16 @@ class CVDetector:
         results = []
         best_score = 0.0
         tpl_img = tpl["image"]
+        tpl_gray_src = tpl["gray"]
         tpl_mask = tpl["mask"]
         th, tw = tpl_img.shape[:2]
         sh, sw = screenshot.shape[:2]
 
-        # 多尺度匹配：应对不同分辨率
+        category = tpl.get("category", "unknown")
         scales = [1.0, 0.9, 0.8, 1.1, 1.2]
+
+        # 控制单模板候选点数量，避免噪声模板在全屏产生过多候选拖慢流程。
+        max_hits = 64 if category == "land" else 8
 
         for scale in scales:
             new_w = int(tw * scale)
@@ -386,8 +394,8 @@ class CVDetector:
             if tpl_mask is not None:
                 resized_mask = cv2.resize(tpl_mask, (new_w, new_h))
 
-            # 灰度匹配（更快）
-            gray_tpl = cv2.cvtColor(resized_tpl, cv2.COLOR_BGR2GRAY)
+            # 灰度模板在加载时已缓存，避免每次匹配重复转灰度。
+            gray_tpl = cv2.resize(tpl_gray_src, (new_w, new_h))
 
             if resized_mask is not None:
                 match_result = cv2.matchTemplate(
@@ -411,7 +419,15 @@ class CVDetector:
 
             # 找到所有超过阈值的匹配位置
             locations = np.where(match_result >= threshold)
-            for pt_y, pt_x in zip(*locations):
+            if locations[0].size > max_hits:
+                scores = match_result[locations]
+                top_idx = np.argpartition(scores, -max_hits)[-max_hits:]
+                pt_ys = locations[0][top_idx]
+                pt_xs = locations[1][top_idx]
+            else:
+                pt_ys, pt_xs = locations
+
+            for pt_y, pt_x in zip(pt_ys, pt_xs):
                 confidence = float(match_result[pt_y, pt_x])
                 center_x = pt_x + new_w // 2
                 center_y = pt_y + new_h // 2

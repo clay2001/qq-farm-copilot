@@ -13,12 +13,16 @@ class BaseStrategy:
         self._capture_fn = None
         self._stop_requested = False
         self._cancel_checker = None
+        self._action_hook = None
 
     def set_capture_fn(self, fn):
         self._capture_fn = fn
 
     def set_cancel_checker(self, fn):
         self._cancel_checker = fn
+
+    def set_action_hook(self, fn):
+        self._action_hook = fn
 
     @property
     def stopped(self) -> bool:
@@ -53,6 +57,11 @@ class BaseStrategy:
         result = self.action_executor.execute_action(action)
         if result.success:
             logger.info(f"✓ {desc}")
+            if self._action_hook:
+                try:
+                    self._action_hook(desc, action.type)
+                except Exception:
+                    pass
         else:
             logger.warning(f"✗ {desc}: {result.message}")
         return result.success

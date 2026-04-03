@@ -18,6 +18,7 @@
 """
 import time
 import threading
+from enum import Enum
 import cv2
 import numpy as np
 from PIL import Image as PILImage
@@ -38,6 +39,17 @@ from core.strategies import (
     PopupStrategy, HarvestStrategy, MaintainStrategy,
     PlantStrategy, ExpandStrategy, SellStrategy, TaskStrategy, FriendStrategy,
 )
+
+
+class RuntimeState(str, Enum):
+    MAIN = "main"
+    POPUP = "popup"
+    SHOP = "shop"
+    BUY_CONFIRM = "buy_confirm"
+    PLOT_MENU = "plot_menu"
+    SEED_SELECT = "seed_select"
+    FRIEND = "friend"
+    UNKNOWN = "unknown"
 
 
 class BotWorker(QThread):
@@ -80,6 +92,14 @@ class BotEngine(QObject):
         self.config = config
         self._session_id = 0
         self._cancel_event = threading.Event()
+        self._runtime_state = RuntimeState.UNKNOWN
+        self._runtime_state_since = time.time()
+        self._expected_states: set[RuntimeState] | None = None
+        self._expected_reason = ""
+        self._expected_deadline = 0.0
+        self._scene_candidate = Scene.UNKNOWN
+        self._scene_candidate_hits = 0
+        self._scene_confirmed = Scene.UNKNOWN
 
         # [1] 窗口控制层
         self.window_manager = WindowManager()
@@ -119,6 +139,131 @@ class BotEngine(QObject):
             s.set_capture_fn(self._capture_and_detect)
             s._stop_requested = False
             s.set_cancel_checker(self._is_cancel_requested)
+            s.set_action_hook(self._on_strategy_action)
+
+    def _reset_scene_confirm(self):
+        self._scene_candidate = Scene.UNKNOWN
+        self._scene_candidate_hits = 0
+        self._scene_confirmed = Scene.UNKNOWN
+
+    def _confirm_scene(self, raw_scene: Scene) -> Scene | None:
+        if raw_scene == self._scene_candidate:
+            self._scene_candidate_hits += 1
+        else:
+            self._scene_candidate = raw_scene
+            self._scene_candidate_hits = 1
+
+        required_hits = 1 if raw_scene == Scene.LEVEL_UP else 2
+        if self._scene_candidate_hits < required_hits:
+            return None
+
+        self._scene_confirmed = raw_scene
+        return raw_scene
+
+    @staticmethod
+    def _scene_to_runtime_state(scene: Scene) -> RuntimeState:
+        if scene == Scene.FARM_OVERVIEW:
+            return RuntimeState.MAIN
+        if scene == Scene.POPUP or scene == Scene.LEVEL_UP:
+            return RuntimeState.POPUP
+        if scene == Scene.SHOP_PAGE:
+            return RuntimeState.SHOP
+        if scene == Scene.BUY_CONFIRM:
+            return RuntimeState.BUY_CONFIRM
+        if scene == Scene.PLOT_MENU:
+            return RuntimeState.PLOT_MENU
+        if scene == Scene.SEED_SELECT:
+            return RuntimeState.SEED_SELECT
+        if scene == Scene.FRIEND_FARM:
+            return RuntimeState.FRIEND
+        return RuntimeState.UNKNOWN
+
+    def _set_runtime_state(self, state: RuntimeState, source: str = ""):
+        if state == self._runtime_state:
+            return
+        old = self._runtime_state
+        self._runtime_state = state
+        self._runtime_state_since = time.time()
+        if source:
+            logger.debug(f"运行状态切换: {old.value} -> {state.value} ({source})")
+        else:
+            logger.debug(f"运行状态切换: {old.value} -> {state.value}")
+
+    def _expect_runtime_states(self, states: set[RuntimeState], timeout: float, reason: str):
+        self._expected_states = set(states)
+        self._expected_reason = str(reason)
+        self._expected_deadline = time.time() + max(0.1, float(timeout))
+        expect = ",".join(sorted(s.value for s in self._expected_states))
+        logger.debug(f"设置期望跳转: reason={reason}, states={expect}, timeout={timeout:.1f}s")
+
+    def _clear_expected_states(self):
+        self._expected_states = None
+        self._expected_reason = ""
+        self._expected_deadline = 0.0
+
+    def _verify_expected_runtime(self) -> bool:
+        if not self._expected_states:
+            return True
+        if self._runtime_state in self._expected_states:
+            logger.debug(
+                f"期望跳转满足: reason={self._expected_reason}, state={self._runtime_state.value}"
+            )
+            self._clear_expected_states()
+            return True
+        if time.time() < self._expected_deadline:
+            return True
+        expect = ",".join(sorted(s.value for s in self._expected_states))
+        logger.warning(
+            f"期望跳转超时: reason={self._expected_reason}, "
+            f"expected={expect}, actual={self._runtime_state.value}"
+        )
+        self._clear_expected_states()
+        return False
+
+    def _on_strategy_action(self, desc: str, action_type: str):
+        text = (desc or "").strip()
+        if not text:
+            return
+
+        if "点击任务" in text:
+            self._expect_runtime_states(
+                {RuntimeState.POPUP, RuntimeState.SHOP, RuntimeState.BUY_CONFIRM},
+                timeout=2.0,
+                reason=text,
+            )
+        elif "打开商店" in text:
+            self._expect_runtime_states(
+                {RuntimeState.SHOP, RuntimeState.BUY_CONFIRM},
+                timeout=2.0,
+                reason=text,
+            )
+        elif "好友求助" in text:
+            self._expect_runtime_states(
+                {RuntimeState.FRIEND},
+                timeout=2.0,
+                reason=text,
+            )
+        elif "回家" in text:
+            self._expect_runtime_states(
+                {RuntimeState.MAIN},
+                timeout=2.0,
+                reason=text,
+            )
+        elif "关闭" in text or "点击空白处" in text:
+            self._expect_runtime_states(
+                {
+                    RuntimeState.MAIN, RuntimeState.POPUP, RuntimeState.PLOT_MENU,
+                    RuntimeState.SEED_SELECT, RuntimeState.SHOP, RuntimeState.BUY_CONFIRM,
+                },
+                timeout=1.5,
+                reason=text,
+            )
+        elif action_type == ActionType.PLANT:
+            self._expect_runtime_states(
+                {RuntimeState.MAIN, RuntimeState.PLOT_MENU, RuntimeState.SEED_SELECT},
+                timeout=1.5,
+                reason=text or "plant",
+            )
 
     def _switch_session(self, cancelled: bool) -> int:
         """切换到新会话，旧会话结果自动作废。"""
@@ -216,6 +361,9 @@ class BotEngine(QObject):
             self.log_message.emit("上一轮任务仍在停止中，请稍候再启动")
             return False
         self._switch_session(cancelled=False)
+        self._clear_expected_states()
+        self._reset_scene_confirm()
+        self._set_runtime_state(RuntimeState.UNKNOWN, "start")
         self.cv_detector.load_templates()
         tpl_count = sum(len(v) for v in self.cv_detector._templates.values())
         if tpl_count == 0:
@@ -259,6 +407,8 @@ class BotEngine(QObject):
 
     def stop(self):
         self._switch_session(cancelled=True)
+        self._clear_expected_states()
+        self._reset_scene_confirm()
         self.scheduler.stop()
         if self._worker and self._worker.isRunning():
             self._worker.requestInterruption()
@@ -270,12 +420,16 @@ class BotEngine(QObject):
 
     def pause(self):
         self._switch_session(cancelled=True)
+        self._clear_expected_states()
+        self._reset_scene_confirm()
         if self._worker and self._worker.isRunning():
             self._worker.requestInterruption()
         self.scheduler.pause()
 
     def resume(self):
         self._switch_session(cancelled=False)
+        self._clear_expected_states()
+        self._reset_scene_confirm()
         self.scheduler.resume()
 
     def run_once(self):
@@ -436,7 +590,22 @@ class BotEngine(QObject):
                 result["message"] = "截屏失败"
                 break
 
-            scene = identify_scene(detections, self.cv_detector, cv_image)
+            raw_scene = identify_scene(detections, self.cv_detector, cv_image)
+            scene = self._confirm_scene(raw_scene)
+            if scene is None:
+                logger.debug(
+                    f"场景候选待确认: raw={raw_scene.value}, hits={self._scene_candidate_hits}"
+                )
+                if not self._sleep_interruptible(0.12, session_id):
+                    break
+                continue
+
+            self._set_runtime_state(self._scene_to_runtime_state(scene), "scene")
+            if not self._verify_expected_runtime():
+                self.popup.click_blank(rect)
+                if not self._sleep_interruptible(0.2, session_id):
+                    break
+                continue
             det_summary = ", ".join(f"{d.name}({d.confidence:.0%})" for d in detections[:6])
             logger.info(f"[轮{round_num}] 场景={scene.value} | {det_summary}")
             self._emit_annotated(cv_image, detections)

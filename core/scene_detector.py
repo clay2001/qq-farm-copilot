@@ -17,11 +17,7 @@ class Scene(str, Enum):
     UNKNOWN = "unknown"
 
 
-def identify_scene(detections: list[DetectResult], detector: CVDetector,
-                   cv_image: np.ndarray) -> Scene:
-    """根据检测结果识别当前场景"""
-    names = {d.name for d in detections}
-
+def _core_identify_scene(names: set[str]) -> Scene:
     if {"btn_buy_confirm", "btn_buy_max"} & names:
         return Scene.BUY_CONFIRM
 
@@ -53,3 +49,45 @@ def identify_scene(detections: list[DetectResult], detector: CVDetector,
         return Scene.FARM_OVERVIEW
 
     return Scene.UNKNOWN
+
+
+def _reduce_names_for_scene(
+    detections: list[DetectResult],
+    min_confidence: float,
+    max_hits_per_name: int,
+) -> set[str]:
+    grouped: dict[str, list[DetectResult]] = {}
+    for d in detections:
+        grouped.setdefault(d.name, []).append(d)
+
+    names: set[str] = set()
+    for name, items in grouped.items():
+        items.sort(key=lambda x: x.confidence, reverse=True)
+        if len(items) > max_hits_per_name:
+            continue
+        if items[0].confidence < min_confidence:
+            continue
+        names.add(name)
+    return names
+
+
+def identify_scene(detections: list[DetectResult], detector: CVDetector,
+                   cv_image: np.ndarray) -> Scene:
+    """根据检测结果识别当前场景"""
+    # 阶段1（严格）：过滤低置信度 + 过滤高重复噪声模板，先做稳健判定。
+    strict_names = _reduce_names_for_scene(
+        detections=detections,
+        min_confidence=0.82,
+        max_hits_per_name=10,
+    )
+    strict_scene = _core_identify_scene(strict_names)
+    if strict_scene != Scene.UNKNOWN:
+        return strict_scene
+
+    # 阶段2（回退）：仅按每个名称的最佳候选放宽判定，避免漏检。
+    fallback_names = _reduce_names_for_scene(
+        detections=detections,
+        min_confidence=0.70,
+        max_hits_per_name=1000000,
+    )
+    return _core_identify_scene(fallback_names)
