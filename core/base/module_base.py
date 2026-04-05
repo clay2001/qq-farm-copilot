@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import cv2
 import numpy as np
@@ -11,15 +11,18 @@ from core.base.button import Button
 from core.base.timer import Timer
 from core.vision.cv_detector import CVDetector
 
+if TYPE_CHECKING:
+    from core.platform.device import Device
+
 
 class ModuleBase:
     """提供按钮识别与点击的基础能力，供 UI/任务模块复用。"""
 
-    def __init__(self, config: Any, detector: CVDetector, device):
+    def __init__(self, config: Any, detector: CVDetector, device: Device):
         """注入配置、检测器与设备对象，并注册统一的按钮匹配入口。"""
         self.config = config
         self.cv_detector = detector
-        self.device = device
+        self.device: Device = device
         self.interval_timer: dict[str, Timer] = {}
         Button.set_match_provider(self._match_button)
 
@@ -182,7 +185,7 @@ class ModuleBase:
 
         # 对无模板按钮（如点击空白处）直接点击
         if not button.file:
-            ok = bool(self.device.click(button, click_offset))
+            ok = bool(self.device.click_button(button, click_offset))
             if ok and interval:
                 self._button_interval_hit(key)
             return ok
@@ -192,7 +195,7 @@ class ModuleBase:
             return False
         if screenshot:
             self.device.screenshot()
-        ok = bool(self.device.click(button, click_offset))
+        ok = bool(self.device.click_button(button, click_offset))
         if ok and interval:
             self._button_interval_hit(key)
         return ok

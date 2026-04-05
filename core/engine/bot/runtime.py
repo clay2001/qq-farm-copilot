@@ -4,38 +4,20 @@ from __future__ import annotations
 
 import threading
 import time
-from datetime import datetime, timedelta
 
-import cv2
-import numpy as np
 from loguru import logger
-from PIL import Image as PILImage
 
 from core.base.button import Button
-from core.engine.task.executor import TaskExecutor
-from core.engine.task.registry import (
-    TaskContext,
-    TaskItem,
-    TaskResult,
-    TaskSnapshot,
-    build_default_tasks,
-)
-from core.engine.task.scheduler import TaskScheduler
 from core.platform.action_executor import ActionExecutor
-from core.platform.device import NKLiteDevice
-from core.platform.screen_capture import ScreenCapture
-from core.platform.window_manager import WindowManager
+from core.platform.device import Device
 from core.ui.assets import ASSET_NAME_TO_CONST
 from core.ui.page import (
     GOTO_MAIN,
-    page_main,
 )
-from core.ui.ui import UI as NKLiteUI
-from core.vision.cv_detector import CVDetector, DetectResult
-from models.config import AppConfig, PlantMode, TaskTriggerType
-from models.farm_state import Action, ActionType
+from core.ui.ui import UI
+from models.config import AppConfig, PlantMode
 from models.game_data import get_best_crop_for_level
-from utils.template_paths import DEFAULT_TEMPLATE_PLATFORM, normalize_template_platform
+from utils.template_paths import normalize_template_platform
 
 
 class BotRuntimeMixin:
@@ -109,7 +91,8 @@ class BotRuntimeMixin:
         for _ in range(2):
             if self._is_cancel_requested(session_id):
                 break
-            self._nklite_click(goto_x, goto_y, 'goto_main')
+            if self.device:
+                self.device.click_point(goto_x, goto_y, desc='goto_main')
             if self._is_cancel_requested(session_id):
                 break
             if not self._sleep_interruptible(0.3, session_id):
@@ -146,8 +129,8 @@ class BotRuntimeMixin:
     def resolve_live_click_point(self, x: int, y: int) -> tuple[int, int]:
         """将逻辑点击坐标映射到当前截图坐标系。"""
         rect = None
-        if self.nk_device is not None:
-            rect = getattr(self.nk_device, 'rect', None)
+        if self.device is not None:
+            rect = getattr(self.device, 'rect', None)
         return self.resolve_capture_point(int(x), int(y), rect=rect)
 
     def _resolve_goto_main_point(self, rect: tuple[int, int, int, int] | None = None) -> tuple[int, int]:
@@ -196,19 +179,14 @@ class BotRuntimeMixin:
             delay_max=self.config.safety.random_delay_max,
             click_offset=self.config.safety.click_offset_range,
         )
-        # [适配层阶段] 构建 nklite 设备/UI/任务对象，供执行器回调使用。
+        # [适配层阶段] 构建设备/UI/任务对象，供执行器回调使用。
         self.action_executor.set_cancel_checker(self._is_cancel_requested)
-        self.nk_device = NKLiteDevice(
-            screenshot_fn=self._nklite_screenshot,
-            click_fn=self._nklite_click,
-            sleep_fn=self._nklite_sleep,
-            cancel_checker=self._is_cancel_requested,
-        )
-        self.nk_device.set_rect(rect)
-        self.nk_ui = NKLiteUI(
+        self.device = Device(engine=self)
+        self.device.set_rect(rect)
+        self.ui = UI(
             config=self.config,
             detector=self.cv_detector,
-            device=self.nk_device,
+            device=self.device,
             crop_name_resolver=self._resolve_crop_name_quiet,
             cancel_checker=self._is_cancel_requested,
         )
@@ -234,8 +212,8 @@ class BotRuntimeMixin:
         """停止当前模块并释放运行状态。"""
         self._switch_session(cancelled=True)
         self._stop_executor()
-        self.nk_ui = None
-        self.nk_device = None
+        self.ui = None
+        self.device = None
         self.scheduler.force_state('idle')
 
         self.scheduler.update_runtime_metrics(

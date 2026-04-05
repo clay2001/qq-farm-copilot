@@ -64,7 +64,7 @@
 : 可中断睡眠，返回 `False` 表示被取消。
 
 - `_prepare_window() -> rect | None`（vision）
-: 刷新窗口、激活、更新 `action_executor/nk_device` 窗口矩形。
+: 刷新窗口、激活、更新 `action_executor/device` 窗口矩形。
 
 - `_clear_screen(rect, session_id=None)`
 : 连续点击 `GOTO_MAIN` 兜底回主。
@@ -72,7 +72,7 @@
 - `resolve_live_click_point(x, y) -> (x, y)`
 : 逻辑坐标映射到当前截图坐标系（考虑 nonclient 裁剪偏移）。
 
-- `_nklite_click(x, y, desc) -> bool`
+- `device.click_minitouch(x, y, desc=...) -> bool`
 : 统一通过 `ActionExecutor` 执行点击动作。
 
 - `_capture_frame(rect, save=False) -> (cv_img, pil_img)`
@@ -183,7 +183,7 @@ rg -n "from core\.ops|core\.ops|model_fields\.keys\(\)" core gui models
 : 检查 `tasks.<name>.enabled`、`trigger/daily_time/interval_seconds`、`priority`。
 
 - 点击偏移明显
-: 检查 `resolve_live_click_point` 是否被绕过；优先走 `_nklite_click` / `ActionExecutor`。
+: 检查 `resolve_live_click_point` 是否被绕过；优先走 `device.click_minitouch` / `ActionExecutor`。
 
 ## 10. 文档同步要求
 

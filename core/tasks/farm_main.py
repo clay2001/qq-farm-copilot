@@ -82,11 +82,10 @@ class TaskFarmMain:
             tick_start = time.perf_counter()
             detect_start = time.perf_counter()
 
-            cv_image, _ = self.engine._capture_frame(rect, save=False)
+            cv_image = self.ui.device.screenshot(rect=rect, save=False)
             if cv_image is None:
                 result.error = '截屏失败'
                 break
-            self.ui.device.set_image(cv_image)
 
             page = self.ui.ui_get_current_page(skip_first_screenshot=True, timeout=0.9)
             if page == page_unknown:
@@ -212,10 +211,9 @@ class TaskFarmMain:
             if self.engine._is_cancel_requested(session_id):
                 break
 
-            cv_image, _ = self.engine._capture_frame(rect, save=False)
+            cv_image = self.ui.device.screenshot(rect=rect, save=False)
             if cv_image is None:
                 break
-            self.ui.device.set_image(cv_image)
 
             if self.ui.ui_additional():
                 actions.append('处理弹窗')
@@ -250,15 +248,13 @@ class TaskFarmMain:
     def _click_goto_main(self, rect: tuple[int, int, int, int]):
         """点击回主按钮。"""
         x, y = self.engine._resolve_goto_main_point(rect)
-        self.engine._nklite_click(x, y, GOTO_MAIN.name)
+        if self.engine.device:
+            self.engine.device.click_point(x, y, desc=GOTO_MAIN.name)
 
     def _refresh_ui_image(self, rect: tuple[int, int, int, int]) -> bool:
         """刷新一帧并更新 UI 缓存图像。"""
-        cv_img, _dets, _image = self.engine._capture_and_detect(rect, save=False, template_names=[])
-        if cv_img is None:
-            return False
-        self.ui.device.set_image(cv_img)
-        return True
+        cv_img = self.ui.device.screenshot(rect=rect, save=False)
+        return cv_img is not None
 
     def _try_expand(self, rect: tuple[int, int, int, int]) -> str | None:
         """尝试执行一次扩建流程；失败后会进入短路状态避免反复触发。"""

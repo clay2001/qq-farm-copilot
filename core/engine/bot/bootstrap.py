@@ -3,38 +3,20 @@
 from __future__ import annotations
 
 import threading
-import time
-from datetime import datetime, timedelta
-
-import cv2
-import numpy as np
-from loguru import logger
-from PIL import Image as PILImage
 
 from core.base.button import Button
 from core.engine.task.executor import TaskExecutor
 from core.engine.task.registry import (
-    TaskContext,
     TaskItem,
-    TaskResult,
-    TaskSnapshot,
-    build_default_tasks,
 )
 from core.engine.task.scheduler import TaskScheduler
 from core.platform.action_executor import ActionExecutor
-from core.platform.device import NKLiteDevice
+from core.platform.device import Device
 from core.platform.screen_capture import ScreenCapture
 from core.platform.window_manager import WindowManager
-from core.ui.assets import ASSET_NAME_TO_CONST
-from core.ui.page import (
-    GOTO_MAIN,
-    page_main,
-)
-from core.ui.ui import UI as NKLiteUI
-from core.vision.cv_detector import CVDetector, DetectResult
-from models.config import AppConfig, PlantMode, TaskTriggerType
-from models.farm_state import Action, ActionType
-from models.game_data import get_best_crop_for_level
+from core.ui.ui import UI
+from core.vision.cv_detector import CVDetector
+from models.config import AppConfig
 from utils.template_paths import DEFAULT_TEMPLATE_PLATFORM, normalize_template_platform
 
 
@@ -62,8 +44,8 @@ class BotInitMixin:
 
         # [3] 操作执行层
         self.action_executor: ActionExecutor | None = None
-        self.nk_device: NKLiteDevice | None = None
-        self.nk_ui: NKLiteUI | None = None
+        self.device: Device | None = None
+        self.ui: UI | None = None
 
         # 调度
         self.scheduler = TaskScheduler()

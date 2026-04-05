@@ -42,10 +42,9 @@ class TaskFarmFriend:
             if self.engine._is_cancel_requested():
                 break
 
-            cv_img, _dets, _image = self.engine._capture_and_detect(rect, save=False, template_names=[])
+            cv_img = self.ui.device.screenshot(rect=rect, save=False)
             if cv_img is None:
                 break
-            self.ui.device.set_image(cv_img)
 
             acted = False
             for btn, desc in [

@@ -53,10 +53,9 @@ class TaskFarmReward:
             if self.engine._is_cancel_requested():
                 return actions
 
-            cv_img, _dets, _image = self.engine._capture_and_detect(rect, save=False, template_names=[])
+            cv_img = self.ui.device.screenshot(rect=rect, save=False)
             if cv_img is None:
                 return actions
-            self.ui.device.set_image(cv_img)
 
             if BTN_SHARE is not None and self.ui.appear(BTN_SHARE, offset=(30, 30), threshold=0.8, static=False):
                 self._share_and_cancel()

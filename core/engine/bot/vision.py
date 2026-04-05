@@ -26,33 +26,18 @@ class BotVisionMixin:
             rect = (window.left, window.top, window.width, window.height)
         if self.action_executor:
             self.action_executor.update_window_rect(rect)
-        if self.nk_device:
-            self.nk_device.set_rect(rect)
+        if self.device:
+            self.device.set_rect(rect)
         return rect
-
-    def _crop_preview_image(self, image: PILImage.Image | None) -> PILImage.Image | None:
-        """仅用于左侧预览显示：按 nonclient 配置裁掉窗口边框/标题栏。"""
-        if image is None:
-            return None
-        platform = getattr(self.config.planting, 'window_platform', 'qq')
-        platform_value = platform.value if hasattr(platform, 'value') else str(platform)
-        return self.window_manager.crop_window_image_for_preview(image, platform_value)
 
     def _capture_frame(
         self, rect: tuple, prefix: str = 'farm', save: bool = True
     ) -> tuple[np.ndarray | None, PILImage.Image | None]:
-        """执行一次截图并转换为 OpenCV 图像，同时推送 GUI 预览。"""
-        if save:
-            image, _ = self.screen_capture.capture_and_save(rect, prefix)
-        else:
-            image = self.screen_capture.capture_region(rect)
-        if image is None:
+        """兼容入口：截图逻辑已下沉到 `device.screenshot`。"""
+        if not self.device:
             return None, None
-        preview_image = self._crop_preview_image(image)
-        if preview_image is None:
-            return None, None
-        self.screenshot_updated.emit(preview_image)
-        cv_image = self.cv_detector.pil_to_cv2(preview_image)
+        cv_image = self.device.screenshot(rect=rect, prefix=prefix, save=save)
+        preview_image = getattr(self.device, 'preview_image', None)
         return cv_image, preview_image
 
     def _capture_and_detect(
@@ -64,36 +49,12 @@ class BotVisionMixin:
         template_rois: dict[str, tuple[int, int, int, int]] | None = None,
         save: bool = True,
     ) -> tuple[np.ndarray | None, list[DetectResult], PILImage.Image | None]:
-        """截图并返回图像；模板识别由业务侧按需调用 detector。"""
+        """兼容入口：截图逻辑已下沉到 `device.screenshot`。"""
         _ = (template_names, template_thresholds, template_rois)
         cv_image, image = self._capture_frame(rect, prefix=prefix, save=save)
         if cv_image is None or image is None:
             return None, [], None
-
         return cv_image, [], image
-
-    def _nklite_screenshot(self, rect: tuple[int, int, int, int]) -> np.ndarray | None:
-        """nklite 设备截图回调。"""
-        cv_image, _ = self._capture_frame(rect, save=False)
-        return cv_image
-
-    def _nklite_click(self, x: int, y: int, desc: str) -> bool:
-        """nklite 点击回调：统一封装为 ActionExecutor 行为。"""
-        if not self.action_executor:
-            return False
-        rel_x, rel_y = self.resolve_live_click_point(int(x), int(y))
-        action = Action(
-            type=ActionType.NAVIGATE,
-            click_position={'x': int(rel_x), 'y': int(rel_y)},
-            priority=0,
-            description=str(desc or 'nklite_click'),
-        )
-        result = self.action_executor.execute_action(action)
-        return bool(result.success)
-
-    def _nklite_sleep(self, seconds: float) -> bool:
-        """nklite 睡眠回调：复用可中断睡眠。"""
-        return self._sleep_interruptible(seconds)
 
     def _emit_annotated(self, cv_image: np.ndarray, detections: list[DetectResult]):
         """将识别结果绘制为标注图并推送到界面。"""

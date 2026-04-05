@@ -43,7 +43,7 @@ class InfoHandler(ModuleBase):
             return False
         if not self.appear(BTN_SHARE, offset=(30, 30), threshold=0.8, static=False):
             return False
-        if not self.device.click(BTN_SHARE):
+        if not self.device.click_button(BTN_SHARE):
             return False
         self.device.sleep(2.0)
         pyautogui.press('escape')

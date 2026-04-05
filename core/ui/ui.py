@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from loguru import logger
 
 from core.base.timer import Timer
 from core.handler.info_handler import InfoHandler
 from core.ui.page import *
+
+if TYPE_CHECKING:
+    from core.platform.device import Device
 
 
 class UI(InfoHandler):
@@ -29,7 +32,7 @@ class UI(InfoHandler):
         self,
         config,
         detector,
-        device,
+        device: Device,
         crop_name_resolver: Callable[[], str],
         cancel_checker: Callable[[], bool],
     ):
@@ -100,7 +103,7 @@ class UI(InfoHandler):
         if interval and not self._button_interval_ready(key, float(interval)):
             return False
 
-        ok = bool(self.device.click(GOTO_MAIN))
+        ok = bool(self.device.click_button(GOTO_MAIN))
         if ok and interval:
             self._button_interval_hit(key)
         return ok
@@ -160,7 +163,7 @@ class UI(InfoHandler):
                     continue
                 button = page.links[page.parent]
                 logger.info(f'Page switch: {page.cn_name} -> {page.parent.cn_name}')
-                self.device.click(button)
+                self.device.click_button(button)
                 clicked = True
                 break
             if clicked:

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from core.engine.bot.executor import BotExecutorMixin
 from core.engine.bot.bootstrap import BotInitMixin
+from core.engine.bot.executor import BotExecutorMixin
 from core.engine.bot.runtime import BotRuntimeMixin
 from core.engine.bot.vision import BotVisionMixin
 

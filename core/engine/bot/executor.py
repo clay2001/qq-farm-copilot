@@ -238,23 +238,23 @@ class BotExecutorMixin:
 
     def _run_task_farm_main(self, _ctx: TaskContext) -> TaskResult:
         """执行 `task_farm_main` 子流程。"""
-        if self.nk_ui is None:
+        if self.ui is None:
             return TaskResult(success=False, actions=[], next_run_seconds=5, error='UI未初始化')
-        task = TaskFarmMain(engine=self, ui=self.nk_ui)
+        task = TaskFarmMain(engine=self, ui=self.ui)
         return task.run(session_id=self._session_id)
 
     def _run_task_friend(self, _ctx: TaskContext) -> TaskResult:
         """执行 `task_friend` 子流程。"""
-        if self.nk_ui is None:
+        if self.ui is None:
             return TaskResult(success=False, actions=[], next_run_seconds=5, error='UI未初始化')
-        task = TaskFriend(engine=self, ui=self.nk_ui)
+        task = TaskFriend(engine=self, ui=self.ui)
         return task.run(session_id=self._session_id)
 
     def _run_task_share(self, _ctx: TaskContext) -> TaskResult:
         """执行 `task_share` 子流程。"""
-        if self.nk_ui is None:
+        if self.ui is None:
             return TaskResult(success=False, actions=[], next_run_seconds=5, error='UI未初始化')
-        task = TaskShare(engine=self, ui=self.nk_ui)
+        task = TaskShare(engine=self, ui=self.ui)
         return task.run(session_id=self._session_id)
 
     def _on_executor_snapshot(self, snapshot: TaskSnapshot):
@@ -298,12 +298,12 @@ class BotExecutorMixin:
             return
         if self._is_cancel_requested():
             return
-        if not self.nk_ui:
+        if not self.ui:
             return
         rect = self.window_manager.get_capture_rect()
-        if rect and self.nk_device:
-            self.nk_device.set_rect(rect)
+        if rect and self.device:
+            self.device.set_rect(rect)
         try:
-            self.nk_ui.ui_goto_main()
+            self.ui.ui_goto_main()
         except Exception as exc:
             logger.debug(f'idle ensure main failed: {exc}')

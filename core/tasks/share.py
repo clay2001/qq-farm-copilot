@@ -45,8 +45,8 @@ class TaskShare:
         rect = self.engine._prepare_window()
         if not rect:
             return TaskResult(success=False, actions=[], next_run_seconds=next_seconds, error='窗口未找到')
-        if self.engine.nk_device:
-            self.engine.nk_device.set_rect(rect)
+        if self.engine.device:
+            self.engine.device.set_rect(rect)
 
         self.engine._clear_screen(rect, session_id)
         self.ui.ui_ensure(page_main, confirm_wait=0.5)

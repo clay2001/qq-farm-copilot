@@ -77,8 +77,8 @@ class ActionExecutor:
             return
         self._sleep_interruptible(0.3)
 
-    def click(self, x: int, y: int) -> bool:
-        """点击指定坐标"""
+    def click_absolute(self, x: int, y: int) -> bool:
+        """点击屏幕绝对坐标。"""
         if self._is_cancelled():
             return False
         try:
@@ -99,6 +99,37 @@ class ActionExecutor:
             logger.error(f'点击失败: {e}')
             return False
 
+    def move_abs(self, x: int, y: int, duration: float = 0.0) -> bool:
+        """移动鼠标到绝对坐标。"""
+        if self._is_cancelled():
+            return False
+        try:
+            pyautogui.moveTo(int(x), int(y), duration=max(0.0, float(duration)))
+            return True
+        except Exception as e:
+            logger.error(f'移动失败: {e}')
+            return False
+
+    def mouse_down(self) -> bool:
+        """按下鼠标左键。"""
+        if self._is_cancelled():
+            return False
+        try:
+            pyautogui.mouseDown()
+            return True
+        except Exception as e:
+            logger.error(f'按下鼠标失败: {e}')
+            return False
+
+    def mouse_up(self) -> bool:
+        """释放鼠标左键。"""
+        try:
+            pyautogui.mouseUp()
+            return True
+        except Exception as e:
+            logger.error(f'释放鼠标失败: {e}')
+            return False
+
     def execute_action(self, action: Action) -> OperationResult:
         """执行单个操作"""
         if self._is_cancelled():
@@ -109,7 +140,6 @@ class ActionExecutor:
 
         # 转换坐标
         abs_x, abs_y = self.relative_to_absolute(int(pos['x']), int(pos['y']))
-
         # 检查坐标是否在窗口范围内
         if not (
             self._window_left <= abs_x <= self._window_left + self._window_width
@@ -119,7 +149,7 @@ class ActionExecutor:
                 action=action, success=False, message=f'坐标 ({abs_x},{abs_y}) 超出窗口范围', timestamp=time.time()
             )
 
-        success = self.click(abs_x, abs_y)
+        success = self.click_absolute(abs_x, abs_y)
         self._random_delay()
 
         return OperationResult(

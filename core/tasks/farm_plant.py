@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pyautogui
 from loguru import logger
 
 from core.base.step_result import StepResult
@@ -51,10 +50,9 @@ class TaskFarmPlant:
 
     def _capture(self, rect: tuple[int, int, int, int]):
         """执行截图流程并返回图像结果。"""
-        cv_img, _dets, _image = self.engine._capture_and_detect(rect, save=False, template_names=[])
-        if cv_img is not None and self.ui and getattr(self.ui, 'device', None):
-            self.ui.device.set_image(cv_img)
-        return cv_img
+        if not self.ui or not getattr(self.ui, 'device', None):
+            return None
+        return self.ui.device.screenshot(rect=rect, save=False)
 
     def _sleep(self, seconds: float) -> bool:
         """可中断休眠。"""
@@ -77,7 +75,8 @@ class TaskFarmPlant:
     def _click_goto_main(self, rect: tuple[int, int, int, int]):
         """点击回主位置。"""
         x, y = self.engine._resolve_goto_main_point(rect)
-        self.engine._nklite_click(x, y, '点击回主按钮')
+        if self.engine.device:
+            self.engine.device.click_point(x, y, desc='点击回主按钮')
 
     def _plant_all(self, rect: tuple[int, int, int, int], crop_name: str) -> list[str]:
         """执行整块农田播种流程（识别空地、拉种子、补种购买）。"""
@@ -119,20 +118,16 @@ class TaskFarmPlant:
                 return all_actions + self._plant_all(rect, crop_name)
             return all_actions
 
-        if not self.engine.action_executor:
+        if not self.engine.action_executor or not self.engine.device:
             return all_actions
 
-        seed_x, seed_y = self.engine.resolve_live_click_point(int(seed_det.x), int(seed_det.y))
-        seed_abs_x, seed_abs_y = self.engine.action_executor.relative_to_absolute(seed_x, seed_y)
         planted_count = 0
         dragging = False
         try:
             if self.engine._is_cancel_requested():
                 return all_actions
-            pyautogui.moveTo(seed_abs_x, seed_abs_y, duration=0.05)
-            if not self._sleep(0.1):
+            if not self.engine.device.drag_down_point(int(seed_det.x), int(seed_det.y), duration=0.05):
                 return all_actions
-            pyautogui.mouseDown()
             dragging = True
             if not self._sleep(0.1):
                 return all_actions
@@ -140,18 +135,14 @@ class TaskFarmPlant:
             for land in lands:
                 if self.engine._is_cancel_requested():
                     break
-                land_x, land_y = self.engine.resolve_live_click_point(int(land.x), int(land.y))
-                abs_x, abs_y = self.engine.action_executor.relative_to_absolute(land_x, land_y)
-                pyautogui.moveTo(abs_x, abs_y, duration=0.1)
+                if not self.engine.device.drag_move_point(int(land.x), int(land.y), duration=0.1):
+                    break
                 if not self._sleep(0.15):
                     break
                 planted_count += 1
         finally:
             if dragging:
-                try:
-                    pyautogui.mouseUp()
-                except Exception:
-                    pass
+                self.engine.device.drag_up()
 
         if planted_count > 0:
             all_actions.append(f'播种{crop_name}×{planted_count}')
