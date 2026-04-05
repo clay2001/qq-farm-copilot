@@ -36,7 +36,7 @@ class TaskFarmSell(TaskBase):
 
     def _batch_sell_once(self, skip_first_screenshot: bool = True) -> bool:
         """仓库内执行一次批量出售。"""
-        logger.info('sell: batch sell')
+        logger.info('出售流程: 批量出售')
         batch_clicked = False
 
         while 1:

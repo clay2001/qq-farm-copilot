@@ -75,6 +75,7 @@ def bot_worker_main(initial_config: dict[str, Any], command_queue, event_queue) 
     # 跨线程任务执行时优先走直接队列回传，避免依赖 Qt 事件循环分发信号。
     engine.emit_preview = lambda image: _forward_image_event('screenshot', image)
     engine.emit_detection_preview = lambda image: _forward_image_event('detection', image)
+    engine.emit_stats = lambda stats: _safe_put(event_queue, {'type': 'stats', 'data': dict(stats or {})})
 
     engine.log_message.connect(lambda text: _safe_put(event_queue, {'type': 'log', 'data': str(text)}))
     engine.state_changed.connect(lambda state: _safe_put(event_queue, {'type': 'state', 'data': str(state)}))

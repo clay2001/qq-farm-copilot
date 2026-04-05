@@ -53,7 +53,7 @@ class UI(InfoHandler):
 
     def ui_get_current_page(self, skip_first_screenshot=True, timeout=2.0):
         """识别当前页面；未知时尝试回主与弹窗处理，直到超时。"""
-        logger.info('UI get current page')
+        logger.info('开始识别当前页面')
         deadline = Timer(timeout, count=1).start()
 
         while True:
@@ -70,11 +70,11 @@ class UI(InfoHandler):
                 if page.check_button is None:
                     continue
                 if self.ui_page_appear(page=page):
-                    logger.info(f'UI page={page.cn_name}')
+                    logger.info(f'识别到页面={page.cn_name}')
                     self.ui_current = page
                     return page
 
-            logger.info('Unknown ui page')
+            logger.info('未识别到页面')
             # 未知页面先尝试固定坐标回主，再尝试弹窗处理，最后按超时退出。
             if self._click_goto_main(interval=2.0):
                 deadline.reset()
@@ -85,7 +85,7 @@ class UI(InfoHandler):
             if deadline.reached():
                 break
 
-        logger.warning('Unknown ui page')
+        logger.warning('页面识别超时，仍为未知页面')
         self.ui_current = page_unknown
         return page_unknown
 
@@ -127,7 +127,7 @@ class UI(InfoHandler):
                 break
             visited = new
 
-        logger.info(f'UI goto {destination.cn_name}')
+        logger.info(f'开始跳转页面 -> {destination.cn_name}')
         confirm_timer = Timer(confirm_wait, count=max(1, int(confirm_wait // 0.5) or 1)).start()
         timeout = Timer(6.0, count=1).start()
         while True:
@@ -139,7 +139,7 @@ class UI(InfoHandler):
             if self.ui_page_appear(destination):
                 if confirm_timer.reached():
                     self.ui_current = destination
-                    logger.info(f'Page arrive: {destination.cn_name}')
+                    logger.info(f'到达页面: {destination.cn_name}')
                     return True
             else:
                 confirm_timer.reset()
@@ -152,7 +152,7 @@ class UI(InfoHandler):
                 if not self.ui_page_appear(page):
                     continue
                 button = page.links[page.parent]
-                logger.info(f'Page switch: {page.cn_name} -> {page.parent.cn_name}')
+                logger.info(f'页面切换: {page.cn_name} -> {page.parent.cn_name}')
                 self.device.click_button(button)
                 clicked = True
                 break
@@ -170,9 +170,9 @@ class UI(InfoHandler):
         """确保当前页面位于目标页；已在目标页则不重复跳转。"""
         self.ui_get_current_page(skip_first_screenshot=skip_first_screenshot)
         if self.ui_current == destination:
-            logger.info(f'Already at {destination.cn_name}')
+            logger.info(f'已在页面: {destination.cn_name}')
             return False
-        logger.info(f'Goto {destination.cn_name}')
+        logger.info(f'跳转到页面: {destination.cn_name}')
         return self.ui_goto(destination, confirm_wait=confirm_wait, skip_first_screenshot=True)
 
     def ui_additional(self):

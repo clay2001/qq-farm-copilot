@@ -53,6 +53,14 @@ class ActionExecutor:
         """操作间延迟"""
         time.sleep(0.3)
 
+    @staticmethod
+    def _format_action_name(desc: str) -> str:
+        """格式化日志中的动作名称。"""
+        text = str(desc or '').strip()
+        if not text:
+            return 'CLICK'
+        return text.upper()
+
     def click_absolute(
         self,
         x: int,
@@ -74,14 +82,16 @@ class ActionExecutor:
                 log_x, log_y = target_x, target_y
             else:
                 log_x, log_y = int(rel_x) + ox, int(rel_y) + oy
-            logger.info(f'点击: {desc} | 坐标: ({log_x}, {log_y})')
+            name = self._format_action_name(desc)
+            logger.info(f'点击: {name} | 坐标: ({log_x}, {log_y})')
             return True
         except Exception as e:
             if rel_x is None or rel_y is None:
                 err_x, err_y = x, y
             else:
                 err_x, err_y = int(rel_x), int(rel_y)
-            logger.error(f'点击失败: {desc} | 坐标: ({err_x}, {err_y}) | 错误: {e}')
+            name = self._format_action_name(desc)
+            logger.error(f'点击失败: {name} | 坐标: ({err_x}, {err_y}) | 错误: {e}')
             return False
 
     def move_abs(self, x: int, y: int, duration: float = 0.0) -> bool:

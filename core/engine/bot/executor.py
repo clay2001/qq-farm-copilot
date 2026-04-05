@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
+from functools import lru_cache
+from pathlib import Path
 from typing import Callable
 
 from loguru import logger
@@ -23,6 +26,43 @@ from tasks.share import TaskShare
 
 class BotExecutorMixin:
     """Bot 执行器与调度相关逻辑。"""
+
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def _task_title_map() -> dict[str, str]:
+        """读取任务中文标题映射。"""
+        labels_path = Path(__file__).resolve().parents[3] / 'configs' / 'ui_labels.json'
+        if not labels_path.exists():
+            return {}
+        try:
+            data = json.loads(labels_path.read_text(encoding='utf-8'))
+        except Exception:
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        panel = data.get('task_panel', {})
+        if not isinstance(panel, dict):
+            return {}
+        titles = panel.get('task_titles', {})
+        if not isinstance(titles, dict):
+            return {}
+        return {str(k): str(v) for k, v in titles.items()}
+
+    def _task_display_name(self, task_name: str) -> str:
+        """获取任务显示名称（优先中文标题）。"""
+        return self._task_title_map().get(str(task_name), str(task_name))
+
+    def _emit_stats_now(self):
+        """立即推送一次完整统计，避免跨线程信号丢失导致 UI 不刷新。"""
+        sender = getattr(self, 'emit_stats', None)
+        stats = self.scheduler.get_stats()
+        if callable(sender):
+            try:
+                sender(stats)
+                return
+            except Exception:
+                pass
+        self.stats_updated.emit(stats)
 
     def _reset_device_runtime_guards(self):
         """任务开始前重置设备卡死/点击守卫记录。"""
@@ -152,6 +192,21 @@ class BotExecutorMixin:
         if not item or not item.enabled:
             return 0.0
         return item.next_run.timestamp()
+
+    @staticmethod
+    def _format_task_next_run(item: TaskItem | None) -> str:
+        """格式化任务下一次执行时间。"""
+        if not item or not item.enabled:
+            return '--'
+        return item.next_run.strftime('%H:%M:%S')
+
+    @staticmethod
+    def _snapshot_next_due_ts(snapshot: TaskSnapshot) -> float:
+        """读取快照内“最早的下一次执行时间戳”（无任务返回 0）。"""
+        items = [*snapshot.pending_tasks, *snapshot.waiting_tasks]
+        if not items:
+            return 0.0
+        return min(item.next_run.timestamp() for item in items)
 
     def _task_seconds_by_trigger(self, task_name: str, now: datetime | None = None) -> int:
         """按任务触发类型返回下次调度间隔秒数。"""
@@ -296,6 +351,7 @@ class BotExecutorMixin:
         """接收执行器快照并更新 GUI 统计面板。"""
         if not self._accept_executor_events:
             return
+        next_due_ts = self._snapshot_next_due_ts(snapshot)
         self.scheduler.update_runtime_metrics(
             current_task=snapshot.running_task or '--',
             failure_count=self._runtime_failure_count,
@@ -304,9 +360,10 @@ class BotExecutorMixin:
             waiting_tasks=len(snapshot.waiting_tasks),
         )
         self.scheduler.set_next_checks(
-            farm_ts=self._task_next_ts(self._executor_tasks.get('farm_main')),
+            farm_ts=next_due_ts,
             friend_ts=self._task_next_ts(self._executor_tasks.get('friend')),
         )
+        self._emit_stats_now()
 
     def _on_executor_task_done(self, task_name: str, result: TaskResult):
         """处理任务完成事件并更新运行统计。"""
@@ -324,20 +381,26 @@ class BotExecutorMixin:
         ):
             self._task_executor.task_delay(task_name, seconds=self._task_seconds_by_trigger(task_name))
 
-        if result.actions:
-            self.log_message.emit(f'[{task_name}] 本轮完成: {", ".join(result.actions)}')
         if result.success:
             self._runtime_failure_count = 0
         else:
             self._runtime_failure_count += 1
-            if result.error:
-                self.log_message.emit(f'[{task_name}] 操作异常: {result.error}')
+
+        action_text = ', '.join(result.actions) if result.actions else '无动作'
+        status_text = '成功' if result.success else '失败'
+        next_run_text = self._format_task_next_run(self._executor_tasks.get(task_name))
+        display_name = self._task_display_name(task_name)
+        msg = f'[{display_name}] 任务完成: {status_text} | 动作: {action_text} | 下次执行: {next_run_text}'
+        if not result.success and result.error:
+            msg = f'{msg} | 错误: {result.error}'
+        logger.info(msg)
 
         last_result = result.actions[-1] if result.actions else ('ok' if result.success else 'failed')
         self.scheduler.update_runtime_metrics(
             failure_count=self._runtime_failure_count,
             last_result=last_result,
         )
+        self._emit_stats_now()
 
     def _on_executor_idle(self):
         """执行器空闲时触发：按策略尝试回主界面。"""
