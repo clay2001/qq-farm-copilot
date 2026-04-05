@@ -4,10 +4,11 @@ import ctypes
 import ctypes.wintypes
 import json
 from dataclasses import dataclass
-from pathlib import Path
 
 import pygetwindow as gw
 from loguru import logger
+
+from utils.app_paths import ensure_user_configs, resolve_config_file
 
 
 @dataclass
@@ -35,8 +36,6 @@ class WindowManager:
     """封装 `WindowManager` 相关的数据与行为。"""
     TARGET_CLIENT_WIDTH = 540
     TARGET_CLIENT_HEIGHT = 960
-    _PROJECT_ROOT = Path(__file__).resolve().parents[2]
-    _NONCLIENT_JSON_PATH = _PROJECT_ROOT / 'configs' / 'nonclient_metrics.json'
     _MONITOR_DEFAULTTONEAREST = 2
     _SWP_NOZORDER = 0x0004
     _SWP_NOOWNERZORDER = 0x0200
@@ -47,6 +46,8 @@ class WindowManager:
         """初始化对象并准备运行所需状态。"""
         self._enable_dpi_awareness()
         self._cached_window: WindowInfo | None = None
+        ensure_user_configs()
+        self._nonclient_json_path = resolve_config_file('nonclient_metrics.json', prefer_user=True)
         self._nonclient_config = self._load_nonclient_config()
         self._last_capture_rect_is_client: bool = False
 
@@ -64,12 +65,12 @@ class WindowManager:
     def _load_nonclient_config(self) -> dict:
         """加载窗口边框/标题高度配置。"""
         try:
-            with open(self._NONCLIENT_JSON_PATH, 'r', encoding='utf-8') as f:
+            with open(self._nonclient_json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             if isinstance(data, dict):
                 return data
         except Exception as e:
-            logger.warning(f'加载 nonclient 配置失败: {self._NONCLIENT_JSON_PATH}, {e}')
+            logger.warning(f'加载 nonclient 配置失败: {self._nonclient_json_path}, {e}')
         return {}
 
     @staticmethod

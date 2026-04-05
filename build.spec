@@ -1,12 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_data_files
+
+rapidocr_datas = collect_data_files('rapidocr_onnxruntime')
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[
+        ('configs', 'configs'),
         ('templates', 'templates'),
         ('gui/icons', 'gui/icons'),
-    ],
+    ] + rapidocr_datas,
     hiddenimports=['PyQt6.sip'],
     hookspath=[],
     hooksconfig={},
@@ -18,21 +23,14 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='QQFarmCopilot',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     console=False,
-    icon=None,
-)
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=True,
-    name='QQFarmCopilot',
+    icon='gui/icons/app_icon.ico',
 )

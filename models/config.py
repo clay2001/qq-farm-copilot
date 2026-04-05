@@ -4,8 +4,11 @@ import json
 import os
 import re
 from enum import Enum
+from pathlib import Path
 
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
+
+from utils.app_paths import ensure_user_configs, resolve_config_file, user_configs_dir
 
 
 class PlantMode(str, Enum):
@@ -171,8 +174,21 @@ class AppConfig(BaseModel):
         if template_path:
             return str(template_path)
         _ = config_path
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        return os.path.join(project_root, 'configs', 'config.template.json')
+        return str(resolve_config_file('config.template.json', prefer_user=True))
+
+    @classmethod
+    def _resolve_config_path(cls, path: str | None = None) -> str:
+        """解析并计算用户配置文件路径。"""
+        raw = str(path or 'configs/config.json').strip()
+        candidate = Path(raw)
+        if candidate.is_absolute():
+            return str(candidate)
+
+        norm = raw.replace('\\', '/')
+        if norm.startswith('configs/'):
+            ensure_user_configs()
+            return str(user_configs_dir() / norm.split('/', 1)[1])
+        return str(candidate)
 
     @classmethod
     def _deep_merge_dict(cls, base: dict, override: dict) -> dict:
@@ -204,7 +220,10 @@ class AppConfig(BaseModel):
     @classmethod
     def load(cls, path: str = 'configs/config.json', template_path: str | None = None) -> 'AppConfig':
         """从配置文件加载并构建配置对象。"""
-        template_file = cls._resolve_template_path(path, template_path)
+        ensure_user_configs()
+
+        config_file = cls._resolve_config_path(path)
+        template_file = cls._resolve_template_path(config_file, template_path)
         template_data: dict = {}
         if template_file and os.path.exists(template_file):
             try:
@@ -212,8 +231,8 @@ class AppConfig(BaseModel):
             except Exception:
                 template_data = {}
 
-        if os.path.exists(path):
-            user_data = cls._read_json_file(path)
+        if os.path.exists(config_file):
+            user_data = cls._read_json_file(config_file)
             data = cls._deep_merge_dict(template_data, user_data)
             config = cls(**data)
         else:
@@ -221,13 +240,13 @@ class AppConfig(BaseModel):
                 config = cls(**template_data)
             else:
                 config = cls()
-        config._config_path = path
+        config._config_path = config_file
         config._template_path = template_file
         return config
 
     def save(self, path: str | None = None):
         """将当前配置对象写回文件。"""
-        p = path or self._config_path or 'configs/config.json'
+        p = self._resolve_config_path(path or self._config_path or 'configs/config.json')
         os.makedirs(os.path.dirname(os.path.abspath(p)), exist_ok=True)
         with open(p, 'w', encoding='utf-8') as f:
             json.dump(self.model_dump(), f, ensure_ascii=False, indent=2)

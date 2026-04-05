@@ -1,5 +1,6 @@
 """QQ Farm Copilot - 程序入口"""
 
+import multiprocessing as mp
 import os
 import sys
 
@@ -10,21 +11,46 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QApplication
 
 from models.config import AppConfig
+from utils.app_paths import ensure_user_configs, resolve_runtime_path, user_configs_dir
 from utils.logger import setup_logger
+
+
+def _resolve_app_icon_path() -> str:
+    """优先使用 ico 图标，找不到时回退 svg。"""
+    ico = resolve_runtime_path('gui', 'icons', 'app_icon.ico')
+    if ico.exists():
+        return str(ico)
+    return str(resolve_runtime_path('gui', 'icons', 'app_icon.svg'))
+
+
+def _set_windows_app_id() -> None:
+    """设置 Windows AppUserModelID，确保任务栏图标与分组正确。"""
+    if sys.platform != 'win32':
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('QQFarmCopilot')
+    except Exception:
+        pass
 
 
 def main():
     # 初始化日志
     setup_logger()
 
+    # 初始化用户配置目录（Windows: %APPDATA%/QQFarmCopilot/configs）
+    ensure_user_configs()
+
     # 加载配置
-    config_path = os.path.join(os.path.dirname(__file__), 'configs', 'config.json')
-    config = AppConfig.load(config_path)
+    config_path = user_configs_dir() / 'config.json'
+    config = AppConfig.load(str(config_path))
 
     # 启动GUI
+    _set_windows_app_id()
     app = QApplication(sys.argv)
     app.setStyle('Fusion')
-    icon_path = os.path.join(os.path.dirname(__file__), 'gui', 'icons', 'app_icon.svg')
+    icon_path = _resolve_app_icon_path()
     app.setWindowIcon(QIcon(icon_path))
 
     # 延迟导入
@@ -37,4 +63,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mp.freeze_support()
     main()

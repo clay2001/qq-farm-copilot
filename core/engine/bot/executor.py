@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta
 from functools import lru_cache
-from pathlib import Path
 from typing import Callable
 
 from loguru import logger
@@ -22,6 +21,7 @@ from tasks.farm_main import TaskFarmMain
 from tasks.farm_sell import TaskFarmSell
 from tasks.friend import TaskFriend
 from tasks.share import TaskShare
+from utils.app_paths import ensure_user_configs, resolve_config_file
 
 
 class BotExecutorMixin:
@@ -31,7 +31,8 @@ class BotExecutorMixin:
     @lru_cache(maxsize=1)
     def _task_title_map() -> dict[str, str]:
         """读取任务中文标题映射。"""
-        labels_path = Path(__file__).resolve().parents[3] / 'configs' / 'ui_labels.json'
+        ensure_user_configs()
+        labels_path = resolve_config_file('ui_labels.json', prefer_user=True)
         if not labels_path.exists():
             return {}
         try:

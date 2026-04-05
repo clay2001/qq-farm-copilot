@@ -38,9 +38,10 @@ from gui.widgets.settings_panel import SettingsPanel
 from gui.widgets.status_panel import StatusPanel
 from gui.widgets.task_panel import TaskPanel
 from models.config import AppConfig
+from utils.app_paths import resolve_runtime_path
 from utils.logger import get_log_signal
 
-STYLESHEET = """
+STYLESHEET_TEMPLATE = """
 QMainWindow { background-color: #f5f5f7; }
 QWidget { color: #1e293b; font-family: 'Microsoft YaHei UI', 'Segoe UI', sans-serif; font-size: 13px; }
 QGroupBox {
@@ -53,7 +54,7 @@ QCheckBox { spacing: 6px; color: #1e293b; }
 QCheckBox::indicator { width: 14px; height: 14px; border: 1.5px solid #cbd5e1; border-radius: 3px; background: #ffffff; }
 QCheckBox::indicator:checked {
     background: #2563eb; border-color: #2563eb;
-    image: url(gui/icons/check.svg);
+    image: url(__CHECK_ICON__);
 }
 QLineEdit, QSpinBox, QComboBox {
     background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px;
@@ -63,9 +64,9 @@ QLineEdit, QSpinBox, QComboBox {
 QSpinBox::up-button { subcontrol-position: top right; width: 20px; border: none; background: #f1f5f9; border-top-right-radius: 5px; }
 QSpinBox::down-button { subcontrol-position: bottom right; width: 20px; border: none; background: #f1f5f9; border-bottom-right-radius: 5px; }
 QSpinBox::up-button:hover, QSpinBox::down-button:hover { background: #dbeafe; }
-QSpinBox::up-arrow { image: url(gui/icons/arrow_up.svg); width: 10px; height: 6px; }
-QSpinBox::down-arrow { image: url(gui/icons/arrow_down.svg); width: 10px; height: 6px; }
-QComboBox::down-arrow { image: url(gui/icons/arrow_down.svg); width: 10px; height: 6px; }
+QSpinBox::up-arrow { image: url(__ARROW_UP_ICON__); width: 10px; height: 6px; }
+QSpinBox::down-arrow { image: url(__ARROW_DOWN_ICON__); width: 10px; height: 6px; }
+QComboBox::down-arrow { image: url(__ARROW_DOWN_ICON__); width: 10px; height: 6px; }
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus { border-color: #2563eb; }
 QComboBox::drop-down { border: none; padding-right: 8px; }
 QComboBox QAbstractItemView { background-color: #ffffff; color: #1e293b; border: 1px solid #e2e8f0; selection-background-color: #dbeafe; }
@@ -74,6 +75,19 @@ QScrollBar::handle:vertical { background: #cbd5e1; border-radius: 3px; min-heigh
 QScrollBar::handle:vertical:hover { background: #94a3b8; }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 """
+
+
+def _build_stylesheet() -> str:
+    """构建样式表并注入运行时图标绝对路径。"""
+    check_icon = str(resolve_runtime_path('gui', 'icons', 'check.svg')).replace('\\', '/')
+    arrow_up_icon = str(resolve_runtime_path('gui', 'icons', 'arrow_up.svg')).replace('\\', '/')
+    arrow_down_icon = str(resolve_runtime_path('gui', 'icons', 'arrow_down.svg')).replace('\\', '/')
+    return (
+        STYLESHEET_TEMPLATE
+        .replace('__CHECK_ICON__', check_icon)
+        .replace('__ARROW_UP_ICON__', arrow_up_icon)
+        .replace('__ARROW_DOWN_ICON__', arrow_down_icon)
+    )
 
 
 def _card(widget: QWidget = None) -> QFrame:
@@ -123,7 +137,9 @@ class MainWindow(QMainWindow):
     def _init_ui(self):
         """构建主界面布局：左侧截图预览，右侧控制区和标签页。"""
         self.setWindowTitle('QQ Farm Copilot')
-        icon_path = os.path.join(os.path.dirname(__file__), 'icons', 'app_icon.svg')
+        icon_path = str(resolve_runtime_path('gui', 'icons', 'app_icon.ico'))
+        if not os.path.exists(icon_path):
+            icon_path = str(resolve_runtime_path('gui', 'icons', 'app_icon.svg'))
         self.setWindowIcon(QIcon(icon_path))
 
         # 动态获取当前屏幕的 DPI 缩放比例
@@ -133,7 +149,7 @@ class MainWindow(QMainWindow):
         self.setMinimumWidth(int(540 / ratio) + 550)
         # 设置一个合理的初始宽度，高度交由系统和内部内容自适应撑开
         self.resize(int(540 / ratio) + 670, 100)
-        self.setStyleSheet(STYLESHEET)
+        self.setStyleSheet(_build_stylesheet())
 
         # 居中显示窗口
         screen = self.screen().availableGeometry()

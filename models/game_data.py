@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+
+from utils.app_paths import ensure_user_configs, resolve_config_file
 
 
 def _parse_grow_phases_seconds(grow_phases: str) -> list[int]:
@@ -50,7 +51,8 @@ def _load_crops_from_plant_json() -> list[tuple]:
     Tuple format:
       (name, seed_id, land_level_need, grow_time_seconds, exp, fruit_count)
     """
-    plant_path = Path(__file__).resolve().parent.parent / 'configs' / 'Plant.json'
+    ensure_user_configs()
+    plant_path = resolve_config_file('Plant.json', prefer_user=True)
     data = json.loads(plant_path.read_text(encoding='utf-8'))
 
     crops: list[tuple] = []
