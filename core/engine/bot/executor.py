@@ -14,10 +14,11 @@ from core.engine.task.registry import (
     TaskResult,
     TaskSnapshot,
 )
+from models.config import TaskTriggerType
 from tasks.farm_main import TaskFarmMain
+from tasks.farm_sell import TaskFarmSell
 from tasks.friend import TaskFriend
 from tasks.share import TaskShare
-from models.config import TaskTriggerType
 
 
 class BotExecutorMixin:
@@ -117,6 +118,18 @@ class BotExecutorMixin:
     def _executor_running(self) -> bool:
         """判断执行器线程是否仍在运行。"""
         return bool(self._task_executor and self._task_executor.is_running())
+
+    def _prepare_task_scene(self, task_name: str) -> tuple[tuple[int, int, int, int] | None, TaskResult | None]:
+        """统一准备任务执行场景：窗口与截图区域。"""
+        if self.ui is None:
+            return None, TaskResult(success=False, actions=[], error='UI未初始化')
+
+        rect = self._prepare_window()
+        if not rect:
+            return None, TaskResult(success=False, actions=[], error='窗口未找到')
+        if self.device:
+            self.device.set_rect(rect)
+        return rect, None
 
     @staticmethod
     def _seconds_to_next_daily(daily_time: str, now: datetime | None = None) -> int:
@@ -245,27 +258,39 @@ class BotExecutorMixin:
 
     def _run_task_farm_main(self, _ctx: TaskContext) -> TaskResult:
         """执行 `task_farm_main` 子流程。"""
-        if self.ui is None:
-            return TaskResult(success=False, actions=[], next_run_seconds=5, error='UI未初始化')
+        rect, err = self._prepare_task_scene('farm_main')
+        if err is not None or rect is None:
+            return err or TaskResult(success=False, actions=[], error='窗口未找到')
         self._reset_device_runtime_guards()
         task = TaskFarmMain(engine=self, ui=self.ui)
-        return task.run()
+        return task.run(rect=rect)
 
     def _run_task_friend(self, _ctx: TaskContext) -> TaskResult:
         """执行 `task_friend` 子流程。"""
-        if self.ui is None:
-            return TaskResult(success=False, actions=[], next_run_seconds=5, error='UI未初始化')
+        rect, err = self._prepare_task_scene('friend')
+        if err is not None or rect is None:
+            return err or TaskResult(success=False, actions=[], error='窗口未找到')
         self._reset_device_runtime_guards()
         task = TaskFriend(engine=self, ui=self.ui)
-        return task.run()
+        return task.run(rect=rect)
 
     def _run_task_share(self, _ctx: TaskContext) -> TaskResult:
         """执行 `task_share` 子流程。"""
-        if self.ui is None:
-            return TaskResult(success=False, actions=[], next_run_seconds=5, error='UI未初始化')
+        rect, err = self._prepare_task_scene('share')
+        if err is not None or rect is None:
+            return err or TaskResult(success=False, actions=[], error='窗口未找到')
         self._reset_device_runtime_guards()
         task = TaskShare(engine=self, ui=self.ui)
-        return task.run()
+        return task.run(rect=rect)
+
+    def _run_task_farm_sell(self, _ctx: TaskContext) -> TaskResult:
+        """执行 `task_farm_sell` 子流程。"""
+        rect, err = self._prepare_task_scene('farm_sell')
+        if err is not None or rect is None:
+            return err or TaskResult(success=False, actions=[], error='窗口未找到')
+        self._reset_device_runtime_guards()
+        task = TaskFarmSell(engine=self, ui=self.ui)
+        return task.run(rect=rect)
 
     def _on_executor_snapshot(self, snapshot: TaskSnapshot):
         """接收执行器快照并更新 GUI 统计面板。"""
@@ -287,6 +312,18 @@ class BotExecutorMixin:
         """处理任务完成事件并更新运行统计。"""
         if not self._accept_executor_events:
             return
+        # 对齐 NIKKE：daily 任务的下次执行时间由执行器统一按 daily_time 计算，
+        # 任务实现层无需每次显式返回 next_run_seconds。
+        cfg = self._get_task_cfg(task_name)
+        if (
+            result.success
+            and result.next_run_seconds is None
+            and cfg is not None
+            and getattr(cfg, 'trigger', TaskTriggerType.INTERVAL) == TaskTriggerType.DAILY
+            and self._task_executor is not None
+        ):
+            self._task_executor.task_delay(task_name, seconds=self._task_seconds_by_trigger(task_name))
+
         if result.actions:
             self.log_message.emit(f'[{task_name}] 本轮完成: {", ".join(result.actions)}')
         if result.success:

@@ -6,22 +6,22 @@ import pyautogui
 
 from core.base.step_result import StepResult
 from core.ui.assets import ASSET_NAME_TO_CONST, BTN_CLAIM, BTN_CLOSE, BTN_CONFIRM, TASK_CHECK
+from tasks.base import TaskBase
 
 # TODO: `btn_share` asset 已删除，当前双倍分享领奖流程会自动跳过。
 BTN_SHARE = ASSET_NAME_TO_CONST.get('btn_share')
 
 
-class TaskFarmReward:
+class TaskFarmReward(TaskBase):
     """封装 `TaskFarmReward` 任务的执行入口与步骤。"""
 
     def __init__(self, engine, ui):
         """初始化对象并准备运行所需状态。"""
-        self.engine = engine
-        self.ui = ui
+        super().__init__(engine, ui)
 
     def run(self, rect, features) -> StepResult:
         """执行当前模块主流程并返回结果。"""
-        if not features.get('auto_task', False):
+        if not self.has_feature(features, 'auto_task'):
             return StepResult()
         if not self.ui.appear_then_click(TASK_CHECK, offset=(30, 30), interval=1, threshold=0.8, static=False):
             return StepResult()

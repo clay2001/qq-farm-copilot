@@ -13,22 +13,22 @@ from core.ui.assets import (
     BTN_WATER,
     BTN_WEED,
 )
+from tasks.base import TaskBase
 
 # TODO: `btn_friend_help` asset 已删除，当前“好友求助入口”步骤会被跳过。
 BTN_FRIEND_HELP = ASSET_NAME_TO_CONST.get('btn_friend_help')
 
 
-class TaskFarmFriend:
+class TaskFarmFriend(TaskBase):
     """封装 `TaskFarmFriend` 任务的执行入口与步骤。"""
 
     def __init__(self, engine, ui):
         """初始化对象并准备运行所需状态。"""
-        self.engine = engine
-        self.ui = ui
+        super().__init__(engine, ui)
 
     def run(self, rect, features) -> StepResult:
         """执行当前模块主流程并返回结果。"""
-        if not features.get('auto_help', False):
+        if not self.has_feature(features, 'auto_help'):
             return StepResult()
         if BTN_FRIEND_HELP is None:
             return StepResult()

@@ -14,6 +14,7 @@ from core.ui.assets import (
     LAND_EMPTY_2,
     LAND_EMPTY_3,
 )
+from tasks.base import TaskBase
 from utils.shop_item_ocr import ShopItemOCR
 
 # TODO: `btn_shop` asset 已删除，当前播种购买逻辑会被跳过，后续补模板后恢复。
@@ -26,18 +27,17 @@ BTN_BUY_CONFIRM = ASSET_NAME_TO_CONST.get('btn_buy_confirm')
 BTN_FERTILIZE_POPUP = ASSET_NAME_TO_CONST.get('btn_fertilize_popup')
 
 
-class TaskFarmPlant:
+class TaskFarmPlant(TaskBase):
     """封装 `TaskFarmPlant` 任务的执行入口与步骤。"""
 
     def __init__(self, engine, ui):
         """初始化对象并准备运行所需状态。"""
-        self.engine = engine
-        self.ui = ui
+        super().__init__(engine, ui)
         self.shop_ocr = ShopItemOCR()
 
     def run(self, rect, features) -> StepResult:
         """执行当前模块主流程并返回结果。"""
-        if not features.get('auto_plant', False):
+        if not self.has_feature(features, 'auto_plant'):
             return StepResult()
 
         has_land = self.ui.appear_any(

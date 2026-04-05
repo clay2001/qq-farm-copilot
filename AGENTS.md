@@ -1,6 +1,8 @@
-# AGENTTS
+# AGENTS
 
 本文件定义本仓库内自动化/编码代理的工作约定。以当前代码实现为准。
+- 每次修改完后，使用 `ruff format` 进行代码格式化。
+
 
 ## 0. 当前状态
 
@@ -101,6 +103,9 @@
 - `appear_then_click_any([...], interval=1, ...)`
 : 依次尝试多个按钮。
 
+- UI 页面跳转开发注意
+: 在跳转链路里，点击只代表“发起动作”，不代表“页面已切换”；点击后应继续循环并复检页面状态，确认到达目标页后再结束当前分支。
+
 ## 3.3 TaskExecutor 常用
 
 - `task_call(task_name, force_call=True)`
@@ -185,8 +190,10 @@ rg -n "from core\.ops|core\.ops|model_fields\.keys\(\)" core gui models
 - 点击偏移明显
 : 检查 `resolve_live_click_point` 是否被绕过；优先走 `device.click_minitouch` / `ActionExecutor`。
 
+
 ## 10. 文档同步要求
 
 - 若改动调度规则、任务入口、配置结构，必须同步更新：
 1. `README.md`
 2. 本文件 `AGENTTS.md`
+

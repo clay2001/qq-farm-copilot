@@ -177,7 +177,7 @@ class ModuleBase:
         return bool(hit)
 
     def appear_then_click(
-        self, button: Button, offset=0, click_offset=0, interval=1, threshold=None, static=True, screenshot=False
+        self, button: Button, offset=0, click_offset=0, interval=1, threshold=0.74, static=True, screenshot=False
     ) -> bool:
         """按钮出现后执行点击；支持无模板按钮的直接点击模式。"""
         key = button.name

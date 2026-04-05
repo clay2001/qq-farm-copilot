@@ -53,7 +53,15 @@ class ActionExecutor:
         """操作间延迟"""
         time.sleep(0.3)
 
-    def click_absolute(self, x: int, y: int) -> bool:
+    def click_absolute(
+        self,
+        x: int,
+        y: int,
+        *,
+        desc: str = 'click',
+        rel_x: int | None = None,
+        rel_y: int | None = None,
+    ) -> bool:
         """点击屏幕绝对坐标。"""
         try:
             ox, oy = self._random_offset()
@@ -62,10 +70,18 @@ class ActionExecutor:
             pyautogui.moveTo(target_x, target_y, duration=0.02)
             time.sleep(0.05)
             pyautogui.click(target_x, target_y)
-            logger.debug(f'点击 ({target_x}, {target_y})')
+            if rel_x is None or rel_y is None:
+                log_x, log_y = target_x, target_y
+            else:
+                log_x, log_y = int(rel_x) + ox, int(rel_y) + oy
+            logger.info(f'点击: {desc} | 坐标: ({log_x}, {log_y})')
             return True
         except Exception as e:
-            logger.error(f'点击失败: {e}')
+            if rel_x is None or rel_y is None:
+                err_x, err_y = x, y
+            else:
+                err_x, err_y = int(rel_x), int(rel_y)
+            logger.error(f'点击失败: {desc} | 坐标: ({err_x}, {err_y}) | 错误: {e}')
             return False
 
     def move_abs(self, x: int, y: int, duration: float = 0.0) -> bool:
@@ -112,7 +128,8 @@ class ActionExecutor:
                 action=action, success=False, message=f'坐标 ({abs_x},{abs_y}) 超出窗口范围', timestamp=time.time()
             )
 
-        success = self.click_absolute(abs_x, abs_y)
+        desc = str(action.description or 'click')
+        success = self.click_absolute(abs_x, abs_y, desc=desc, rel_x=int(pos['x']), rel_y=int(pos['y']))
         self._random_delay()
 
         return OperationResult(

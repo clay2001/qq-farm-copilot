@@ -17,7 +17,7 @@
       "priority": 10,
       "trigger": "interval",
       "interval_seconds": 60,
-      "daily_time": "04:00",
+      "daily_time": "00:00",
       "failure_interval_seconds": 30,
       "features": {
         "auto_harvest": true,
@@ -25,7 +25,6 @@
         "auto_weed": true,
         "auto_water": true,
         "auto_bug": true,
-        "auto_sell": true,
         "auto_upgrade": true,
         "auto_fertilize": false
       }
@@ -35,7 +34,7 @@
       "priority": 20,
       "trigger": "interval",
       "interval_seconds": 1800,
-      "daily_time": "04:00",
+      "daily_time": "00:00",
       "failure_interval_seconds": 60,
       "features": {
         "auto_help": true,
@@ -47,10 +46,21 @@
       "priority": 30,
       "trigger": "daily",
       "interval_seconds": 86400,
-      "daily_time": "04:00",
+      "daily_time": "00:00",
       "failure_interval_seconds": 300,
       "features": {
         "auto_task": true
+      }
+    },
+    "farm_sell": {
+      "enabled": true,
+      "priority": 40,
+      "trigger": "interval",
+      "interval_seconds": 21600,
+      "daily_time": "00:00",
+      "failure_interval_seconds": 300,
+      "features": {
+        "auto_sell": true
       }
     }
   },

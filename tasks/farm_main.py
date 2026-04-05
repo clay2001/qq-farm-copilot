@@ -6,20 +6,8 @@ import time
 
 from loguru import logger
 
-from core.engine.task.registry import TaskResult
 from core.base.step_result import StepResult
-from tasks.farm_friend import TaskFarmFriend
-from tasks.farm_harvest import TaskFarmHarvest
-from tasks.farm_plant import TaskFarmPlant
-from tasks.farm_reward import TaskFarmReward
-from tasks.farm_sell import TaskFarmSell
-from core.ui.page import (
-    GOTO_MAIN,
-    page_friend,
-    page_main,
-    page_shop,
-    page_unknown,
-)
+from core.engine.task.registry import TaskResult
 from core.ui.assets import (
     BTN_CLAIM,
     BTN_CLOSE,
@@ -28,34 +16,38 @@ from core.ui.assets import (
     BTN_EXPAND_CONFIRM,
     BTN_EXPAND_DIRECT_CONFIRM,
 )
+from core.ui.page import (
+    GOTO_MAIN,
+    page_friend,
+    page_main,
+    page_shop,
+    page_unknown,
+)
+from tasks.farm_friend import TaskFarmFriend
+from tasks.farm_harvest import TaskFarmHarvest
+from tasks.farm_plant import TaskFarmPlant
+from tasks.farm_reward import TaskFarmReward
+from tasks.base import TaskBase
 
 
-class TaskFarmMain:
+class TaskFarmMain(TaskBase):
     """封装 `TaskFarmMain` 任务的执行入口与步骤。"""
 
     def __init__(self, engine, ui):
         """初始化对象并准备运行所需状态。"""
-        self.engine = engine
-        self.ui = ui
+        super().__init__(engine, ui)
         self._expand_failed = False
         self.task_harvest = TaskFarmHarvest(engine, ui)
         self.task_plant = TaskFarmPlant(engine, ui)
-        self.task_sell = TaskFarmSell(engine, ui)
         self.task_reward = TaskFarmReward(engine, ui)
         self.task_friend = TaskFarmFriend(engine, ui)
 
-    def run(self) -> TaskResult:
+    def run(self, rect: tuple[int, int, int, int]) -> TaskResult:
         """执行当前模块主流程并返回结果。"""
         result = TaskResult(success=False, actions=[], next_run_seconds=None, error='')
+        features = self.get_features('farm_main')
 
-        # [准备阶段] 同步窗口与 UI 状态，确保从主界面开始执行。
-        features = self.engine.get_task_features('farm_main')
-        rect = self.engine._prepare_window()
-        if not rect:
-            result.error = '窗口未找到'
-            return result
-        self.ui.device.set_rect(rect)
-
+        # [准备阶段] 任务内确保进入目标页面。
         self.engine._clear_screen(rect)
         self.ui.ui_ensure(page_main, confirm_wait=0.5)
 
@@ -66,7 +58,6 @@ class TaskFarmMain:
 
         idle_rounds = 0
         max_idle = 3
-        sold_this_round = False
         tick = 0
         transition_budget = max(30, int(self.engine.config.safety.max_actions_per_round) * 3)
 
@@ -115,10 +106,9 @@ class TaskFarmMain:
 
             action_start = time.perf_counter()
             if page == page_main:
-                dispatch_result, sold_this_round = self._run_main_tasks(
+                dispatch_result = self._run_main_tasks(
                     rect=rect,
                     features=features,
-                    sold_this_round=sold_this_round,
                 )
             elif page == page_shop:
                 dispatch_result = StepResult()
@@ -165,28 +155,23 @@ class TaskFarmMain:
         self,
         rect: tuple[int, int, int, int],
         features: dict,
-        sold_this_round: bool,
-    ) -> tuple[StepResult, bool]:
+    ) -> StepResult:
         """执行 `main_tasks` 子流程。"""
         out = self.task_plant.run(rect=rect, features=features)
         if out.action:
-            return out, sold_this_round
+            return out
 
-        if features.get('auto_upgrade', False):
+        if self.has_feature(features, 'auto_upgrade'):
             out = StepResult.from_value(self._try_expand(rect))
             if out.action:
-                return out, sold_this_round
-
-        out, sold_this_round = self.task_sell.run(features=features, sold_this_round=sold_this_round)
-        if out.action:
-            return out, sold_this_round
+                return out
 
         out = self.task_reward.run(rect=rect, features=features)
         if out.action:
-            return out, sold_this_round
+            return out
 
         out = self.task_friend.run(rect=rect, features=features)
-        return out, sold_this_round
+        return out
 
     def _run_self_farm_patrol(
         self,
@@ -247,7 +232,9 @@ class TaskFarmMain:
                 BTN_EXPAND_DIRECT_CONFIRM, offset=(30, 30), interval=1, threshold=0.8, static=False
             ):
                 action_name = '直接扩建'
-            elif self.ui.appear_then_click(BTN_EXPAND_CONFIRM, offset=(30, 30), interval=1, threshold=0.8, static=False):
+            elif self.ui.appear_then_click(
+                BTN_EXPAND_CONFIRM, offset=(30, 30), interval=1, threshold=0.8, static=False
+            ):
                 action_name = '扩建确认'
 
             if action_name:

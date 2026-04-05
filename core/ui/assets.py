@@ -17,6 +17,7 @@ BTN_HOME = Button(area={'qq': (465, 697, 510, 729), 'wechat': (465, 697, 510, 72
 BTN_MATURE = Button(area={'qq': (261, 457, 278, 479), 'wechat': (261, 457, 278, 479)}, color={'qq': (201, 181, 78), 'wechat': (201, 181, 78)}, button={'qq': (261, 457, 278, 479), 'wechat': (261, 457, 278, 479)}, file={'qq': 'templates/qq/btn/btn_mature.png', 'wechat': 'templates/qq/btn/btn_mature.png'}, name='btn_mature')
 BTN_ORDINARY_FERTILIZER = Button(area={'qq': (115, 610, 159, 642), 'wechat': (115, 610, 159, 642)}, color={'qq': (200, 134, 76), 'wechat': (200, 134, 76)}, button={'qq': (115, 610, 159, 642), 'wechat': (115, 610, 159, 642)}, file={'qq': 'templates/qq/btn/btn_ordinary_fertilizer.png', 'wechat': 'templates/qq/btn/btn_ordinary_fertilizer.png'}, name='btn_ordinary_fertilizer')
 BTN_ORGANIC_FERTILIZER = Button(area={'qq': (202, 613, 248, 640), 'wechat': (202, 613, 248, 640)}, color={'qq': (175, 139, 35), 'wechat': (175, 139, 35)}, button={'qq': (202, 613, 248, 640), 'wechat': (202, 613, 248, 640)}, file={'qq': 'templates/qq/btn/btn_organic_fertilizer.png', 'wechat': 'templates/qq/btn/btn_organic_fertilizer.png'}, name='btn_organic_fertilizer')
+BTN_PLANTING = Button(area={'qq': (233, 866, 307, 893), 'wechat': (233, 866, 307, 893)}, color={'qq': (190, 201, 107), 'wechat': (190, 201, 107)}, button={'qq': (233, 866, 307, 893), 'wechat': (233, 866, 307, 893)}, file={'qq': 'templates/qq/btn/btn_planting.png', 'wechat': 'templates/qq/btn/btn_planting.png'}, name='btn_planting')
 BTN_SHARE_GREEN = Button(area={'qq': (356, 753, 406, 778), 'wechat': (356, 753, 406, 778)}, color={'qq': (178, 195, 76), 'wechat': (178, 195, 76)}, button={'qq': (356, 753, 406, 778), 'wechat': (356, 753, 406, 778)}, file={'qq': 'templates/qq/btn/btn_share_green.png', 'wechat': 'templates/qq/btn/btn_share_green.png'}, name='btn_share_green')
 BTN_SHARE_YELLOW = Button(area={'qq': (139, 733, 190, 760), 'wechat': (139, 733, 190, 760)}, color={'qq': (223, 185, 102), 'wechat': (223, 185, 102)}, button={'qq': (139, 733, 190, 760), 'wechat': (139, 733, 190, 760)}, file={'qq': 'templates/qq/btn/btn_share_yellow.png', 'wechat': 'templates/qq/btn/btn_share_yellow.png'}, name='btn_share_yellow')
 BTN_STEAL = Button(area={'qq': (248, 692, 284, 720), 'wechat': (248, 692, 284, 720)}, color={'qq': (187, 147, 123), 'wechat': (187, 147, 123)}, button={'qq': (248, 692, 284, 720), 'wechat': (248, 692, 284, 720)}, file={'qq': 'templates/qq/btn/btn_steal.png', 'wechat': 'templates/qq/btn/btn_steal.png'}, name='btn_steal')
@@ -61,6 +62,7 @@ ASSET_NAME_TO_CONST = {
     'btn_mature': BTN_MATURE,
     'btn_ordinary_fertilizer': BTN_ORDINARY_FERTILIZER,
     'btn_organic_fertilizer': BTN_ORGANIC_FERTILIZER,
+    'btn_planting': BTN_PLANTING,
     'btn_share_green': BTN_SHARE_GREEN,
     'btn_share_yellow': BTN_SHARE_YELLOW,
     'btn_steal': BTN_STEAL,
