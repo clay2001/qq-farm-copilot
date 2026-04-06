@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
+from loguru import logger
+
 from core.base.button import Button
 from core.base.timer import Timer
 from core.engine.task.registry import TaskResult
 from core.ui.assets import (
     BTN_BUG,
-    BTN_CLAIM,
-    BTN_CLOSE,
-    BTN_CONFIRM,
     BTN_HOME,
     BTN_STEAL,
     BTN_VISIT_FIRST,
@@ -47,13 +46,20 @@ class TaskFriend(TaskBase):
         features = self.get_features('friend')
         enable_steal = self.has_feature(features, 'auto_steal')
         enable_help = self.has_feature(features, 'auto_help')
+        logger.info('好友流程: 开始 | 偷菜={} 帮忙={}', enable_steal, enable_help)
         if not enable_steal and not enable_help:
+            logger.info('好友流程: 未启用任何功能，结束')
             return self.ok()
 
+        # 进入好友列表页
         self.ui.ui_ensure(page_friend)
+        # 等待列表加载
+        self.wait_list_loading()
+
         actions = self._run_friend_progressive(enable_help=enable_help, enable_steal=enable_steal)
         # 返回主页
         self.back_to_home()
+        logger.info('好友流程: 结束 | 动作={}', '、'.join(actions) if actions else '无动作')
 
         return self.ok(actions=actions)
 
@@ -87,6 +93,7 @@ class TaskFriend(TaskBase):
     def _enter_friend_detail(self) -> bool:
         """从好友列表页进入某个好友详情页。"""
         # 查找列表上的操作图标
+        self.ui.device.screenshot()
         features = self.get_features('friend')
         list_steal = self._collect_operable_friend_list_icons(
             enable_steal=self.has_feature(features, 'auto_steal'),
@@ -94,6 +101,7 @@ class TaskFriend(TaskBase):
         list_help = self._collect_operable_friend_list_icons(
             enable_help=self.has_feature(features, 'auto_help'),
         )
+        logger.info('好友流程: 列表可操作目标 | 偷菜={} 帮忙={}', len(list_steal), len(list_help))
 
         # 进入详情页
         if list_steal or list_help:
@@ -102,8 +110,10 @@ class TaskFriend(TaskBase):
                 if self.ui.appear_then_click(BTN_VISIT_FIRST, offset=30, interval=1):
                     continue
                 if self.ui.appear(BTN_HOME, offset=30):
+                    logger.info('好友流程: 已进入好友详情页')
                     return True
 
+        logger.info('好友流程: 未进入好友详情页，结束本轮')
         return False
 
     def _goto_next_operable_friend(self, *, enable_help: bool, enable_steal: bool) -> bool:
@@ -116,9 +126,11 @@ class TaskFriend(TaskBase):
         candidates = self._collect_operable_friend_icons(enable_help=enable_help, enable_steal=enable_steal)
         if candidates:
             if self.ui.device.click_button(candidates[0]):
+                logger.info('好友流程: 切换下一位好友')
                 self.ui.device.sleep(0.5)
                 return True
 
+        logger.info('好友流程: 未找到下一位可操作好友')
         return False
 
     def _collect_operable_friend_icons(self, *, enable_help: bool, enable_steal: bool) -> list[Button]:
@@ -220,4 +232,11 @@ class TaskFriend(TaskBase):
             if self.ui.appear_then_click(BTN_HOME, offset=30, interval=1):
                 continue
             if self.ui.appear(MAIN_GOTO_FRIEND, offset=30):
+                break
+
+    def wait_list_loading(self):
+        """等待好友列表加载。"""
+        while 1:
+            self.ui.device.screenshot()
+            if self.ui.appear(BTN_VISIT_FIRST, offset=30):
                 break
