@@ -5,7 +5,7 @@ from __future__ import annotations
 from core.engine.task.registry import TaskResult
 from core.ui.page import page_main
 from tasks.base import TaskBase
-from tasks.farm_reward import TaskFarmReward
+from tasks.reward import TaskReward
 
 
 class TaskShare(TaskBase):
@@ -14,7 +14,7 @@ class TaskShare(TaskBase):
     def __init__(self, engine, ui):
         """初始化对象并准备运行所需状态。"""
         super().__init__(engine, ui)
-        self._reward = TaskFarmReward(engine=engine, ui=ui)
+        self._reward = TaskReward(engine=engine, ui=ui)
 
     def run(self, rect: tuple[int, int, int, int]) -> TaskResult:
         """执行分享任务并返回调度结果。"""

@@ -215,9 +215,9 @@ class BotRuntimeMixin:
         self.stats_updated.emit(self.scheduler.get_stats())
 
     def run_once(self):
-        """立即触发一次 `farm_main` 任务执行。"""
+        """立即触发一次 `main` 任务执行。"""
         if not self._task_executor or not self._task_executor.is_running():
             self.log_message.emit('执行器未运行，无法立即执行')
             return
-        self._task_executor.task_call('farm_main')
+        self._task_executor.task_call('main')
         self._task_executor.resume()

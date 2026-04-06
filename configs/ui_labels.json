@@ -1,10 +1,10 @@
 {
   "feature_panel": {
     "task_titles": {
-      "farm_main": "农场巡查",
+      "main": "农场巡查",
       "friend": "好友巡查",
       "share": "分享",
-      "farm_sell": "出售"
+      "sell": "出售"
     },
     "feature_labels": {
       "auto_harvest": "收获",
@@ -25,10 +25,10 @@
   },
   "task_panel": {
     "task_titles": {
-      "farm_main": "农场巡查",
+      "main": "农场巡查",
       "friend": "好友巡查",
       "share": "分享",
-      "farm_sell": "出售"
+      "sell": "出售"
     },
     "switch_label": "开关:",
     "enabled": "启用",

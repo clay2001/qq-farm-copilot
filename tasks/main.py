@@ -13,8 +13,8 @@ from tasks.base import TaskBase
 from utils.shop_item_ocr import ShopItemOCR
 
 
-class TaskFarmMain(TaskBase):
-    """封装 `TaskFarmMain` 任务的执行入口与步骤。"""
+class TaskMain(TaskBase):
+    """封装 `TaskMain` 任务的执行入口与步骤。"""
 
     def __init__(self, engine, ui):
         """初始化对象并准备运行所需状态。"""
@@ -24,7 +24,7 @@ class TaskFarmMain(TaskBase):
 
     def run(self, rect: tuple[int, int, int, int]) -> TaskResult:
         """执行主流程：在 run 内按 feature 显式控制每个子方法。"""
-        features = self.get_features('farm_main')
+        features = self.get_features('main')
         actions: list[str] = []
 
         self.ui.ui_ensure(page_main)

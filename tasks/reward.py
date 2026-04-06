@@ -12,8 +12,8 @@ from tasks.base import TaskBase
 BTN_SHARE = ASSET_NAME_TO_CONST.get('btn_share')
 
 
-class TaskFarmReward(TaskBase):
-    """封装 `TaskFarmReward` 任务的执行入口与步骤。"""
+class TaskReward(TaskBase):
+    """封装 `TaskReward` 任务的执行入口与步骤。"""
 
     def __init__(self, engine, ui):
         """初始化对象并准备运行所需状态。"""

@@ -26,7 +26,7 @@
 : 通用任务执行器（pending/waiting 队列、优先级排序、结果回写 next_run）。
 
 - `core/tasks/*.py`
-: 业务任务实现（`farm_main/friend/share` 及 farm 子任务）。
+: 业务任务实现（`main/friend/share` 及子任务）。
 
 - `core/ui/ui.py` + `core/base/module_base.py`
 : 页面识别、导航、弹窗清理、`appear/appear_then_click` 等模板点击能力。
@@ -119,27 +119,27 @@
 
 ## 4. 业务任务逻辑（当前实现）
 
-- `farm_main`
+- `main`
 : 主流程任务，内部先巡查维护，再按页面分发子任务。
 
-- `farm_main` 在主页面的子任务顺序（命中即短路）：
+- `main` 在主页面的子任务顺序（命中即短路）：
 1. `plant`
 2. `upgrade(expand)`
 3. `sell`
 4. `reward`
 5. `friend`
 
-- `farm_harvest` 内部顺序（命中即返回）：
+- `harvest` 内部顺序（命中即返回）：
 1. 收获
 2. 除草
 3. 除虫
 4. 浇水
 
 - `friend`
-: 独立好友任务，复用 `TaskFarmFriend`。
+: 独立好友任务，复用 `TaskFriend`。
 
 - `share`
-: 独立分享/任务奖励任务，复用 `TaskFarmReward`。
+: 独立分享/任务奖励任务，复用 `TaskReward`。
 
 ## 5. 新增任务标准流程
 

@@ -14,7 +14,7 @@
 
 当前内置任务（通过 `_run_task_*` 自动发现）：
 
-- `farm_main`：农场主流程（收获维护、播种、扩建、出售、任务奖励、好友求助入口）
+- `main`：农场主流程（收获维护、播种、扩建、出售、任务奖励、好友求助入口）
 - `friend`：独立好友任务
 - `share`：独立分享/任务奖励任务（通常配合每日触发）
 
@@ -98,7 +98,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 ```json
 {
-  "farm_main": {
+  "main": {
     "enabled": true,
     "priority": 10,
     "trigger": "interval",

@@ -1,11 +1,22 @@
-"""独立好友任务。"""
+"""好友求助任务。"""
 
 from __future__ import annotations
 
 from core.engine.task.registry import TaskResult
-from core.ui.page import page_main
+from core.ui.assets import (
+    ASSET_NAME_TO_CONST,
+    BTN_BUG,
+    BTN_CLAIM,
+    BTN_CLOSE,
+    BTN_CONFIRM,
+    BTN_HOME,
+    BTN_WATER,
+    BTN_WEED,
+)
 from tasks.base import TaskBase
-from tasks.farm_friend import TaskFarmFriend
+
+# TODO: `btn_friend_help` asset 已删除，当前“好友求助入口”步骤会被跳过。
+BTN_FRIEND_HELP = ASSET_NAME_TO_CONST.get('btn_friend_help')
 
 
 class TaskFriend(TaskBase):
@@ -14,12 +25,60 @@ class TaskFriend(TaskBase):
     def __init__(self, engine, ui):
         """初始化对象并准备运行所需状态。"""
         super().__init__(engine, ui)
-        self._friend = TaskFarmFriend(engine=engine, ui=ui)
 
     def run(self, rect: tuple[int, int, int, int]) -> TaskResult:
-        """执行好友任务并返回调度结果。"""
-        self.engine._clear_screen(rect)
-        self.ui.ui_ensure(page_main, confirm_wait=0.5)
+        """执行当前模块主流程并返回结果。"""
+        features = self.get_features('friend')
+        if not self.has_feature(features, 'auto_help'):
+            return self.ok()
+        if BTN_FRIEND_HELP is None:
+            return self.ok()
+        if not self.ui.appear_then_click(BTN_FRIEND_HELP, offset=(30, 30), interval=1, threshold=0.8, static=False):
+            return self.ok()
+        self.ui.device.sleep(0.4)
+        return self.ok(actions=self.help_in_friend_farm(rect))
 
-        out = self._friend.run(rect=rect, features=self.get_features('friend'))
-        return self.ok(actions=list(out.actions))
+    def help_in_friend_farm(self, rect: tuple[int, int, int, int]) -> list[str]:
+        """在好友农场执行浇水/除草/除虫，完成后尝试回家。"""
+        actions_done: list[str] = []
+        idle_rounds = 0
+
+        for _ in range(12):
+            cv_img = self.ui.device.screenshot(rect=rect, save=False)
+            if cv_img is None:
+                break
+
+            acted = False
+            for btn, desc in [
+                (BTN_WATER, '帮好友浇水'),
+                (BTN_WEED, '帮好友除草'),
+                (BTN_BUG, '帮好友除虫'),
+            ]:
+                if not self.ui.appear_then_click(btn, offset=(30, 30), interval=1, threshold=0.8, static=False):
+                    continue
+                actions_done.append(desc)
+                acted = True
+                self.ui.device.sleep(0.3)
+                break
+
+            if acted:
+                idle_rounds = 0
+                continue
+
+            if self.ui.appear_then_click(BTN_HOME, offset=(30, 30), interval=1, threshold=0.8, static=False):
+                actions_done.append('回家')
+                self.ui.device.sleep(0.3)
+                break
+
+            if self.ui.appear_then_click_any(
+                [BTN_CLAIM, BTN_CONFIRM, BTN_CLOSE], offset=(30, 30), interval=1, threshold=0.8, static=False
+            ):
+                self.ui.device.sleep(0.2)
+                continue
+
+            idle_rounds += 1
+            if idle_rounds >= 2:
+                break
+            self.ui.device.sleep(0.2)
+
+        return actions_done

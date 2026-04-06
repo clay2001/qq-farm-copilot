@@ -12,7 +12,7 @@
     "max_history_count": 50
   },
   "tasks": {
-    "farm_main": {
+    "main": {
       "enabled": true,
       "priority": 10,
       "trigger": "interval",
@@ -52,7 +52,7 @@
         "auto_task": true
       }
     },
-    "farm_sell": {
+    "sell": {
       "enabled": true,
       "priority": 40,
       "trigger": "interval",

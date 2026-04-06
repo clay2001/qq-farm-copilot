@@ -20,9 +20,9 @@ from core.engine.task.registry import (
 from core.exceptions import GamePageUnknownError, LoginRepeatError, TaskRetryCurrentError
 from core.platform.device import DeviceStuckError, DeviceTooManyClickError
 from models.config import TaskTriggerType
-from tasks.farm_main import TaskFarmMain
-from tasks.farm_sell import TaskFarmSell
 from tasks.friend import TaskFriend
+from tasks.main import TaskMain
+from tasks.sell import TaskSell
 from tasks.share import TaskShare
 from utils.app_paths import ensure_user_configs, resolve_config_file
 
@@ -316,13 +316,13 @@ class BotExecutorMixin:
             executor.stop(wait_timeout=1.5)
         self._executor_tasks = {}
 
-    def _run_task_farm_main(self, _ctx: TaskContext) -> TaskResult:
-        """执行 `task_farm_main` 子流程。"""
-        rect, err = self._prepare_task_scene('farm_main')
+    def _run_task_main(self, _ctx: TaskContext) -> TaskResult:
+        """执行 `task_main` 子流程。"""
+        rect, err = self._prepare_task_scene('main')
         if err is not None or rect is None:
             return err or TaskResult(success=False, actions=[], error='窗口未找到')
         self._reset_device_runtime_guards()
-        task = TaskFarmMain(engine=self, ui=self.ui)
+        task = TaskMain(engine=self, ui=self.ui)
         return task.run(rect=rect)
 
     def _run_task_friend(self, _ctx: TaskContext) -> TaskResult:
@@ -343,13 +343,13 @@ class BotExecutorMixin:
         task = TaskShare(engine=self, ui=self.ui)
         return task.run(rect=rect)
 
-    def _run_task_farm_sell(self, _ctx: TaskContext) -> TaskResult:
-        """执行 `task_farm_sell` 子流程。"""
-        rect, err = self._prepare_task_scene('farm_sell')
+    def _run_task_sell(self, _ctx: TaskContext) -> TaskResult:
+        """执行 `task_sell` 子流程。"""
+        rect, err = self._prepare_task_scene('sell')
         if err is not None or rect is None:
             return err or TaskResult(success=False, actions=[], error='窗口未找到')
         self._reset_device_runtime_guards()
-        task = TaskFarmSell(engine=self, ui=self.ui)
+        task = TaskSell(engine=self, ui=self.ui)
         return task.run(rect=rect)
 
     def _on_executor_snapshot(self, snapshot: TaskSnapshot):

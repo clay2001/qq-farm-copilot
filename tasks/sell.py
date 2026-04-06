@@ -17,8 +17,8 @@ from models.farm_state import ActionType
 from tasks.base import TaskBase
 
 
-class TaskFarmSell(TaskBase):
-    """封装 `TaskFarmSell` 任务的执行入口与步骤。"""
+class TaskSell(TaskBase):
+    """封装 `TaskSell` 任务的执行入口与步骤。"""
 
     def __init__(self, engine, ui):
         """初始化对象并准备运行所需状态。"""
@@ -27,7 +27,7 @@ class TaskFarmSell(TaskBase):
     def run(self, rect: tuple[int, int, int, int]) -> TaskResult:
         """执行独立出售任务并返回调度结果。"""
         self.ui.ui_ensure(page_warehouse)
-        if not self.is_feature_enabled('farm_sell', 'auto_sell'):
+        if not self.is_feature_enabled('sell', 'auto_sell'):
             return self.ok()
 
         if not self._batch_sell_once():
