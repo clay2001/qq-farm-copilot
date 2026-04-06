@@ -90,6 +90,80 @@ jobs:
           name: QQFarmCopilot-${{ steps.meta.outputs.tag }}-windows-x64
           path: ${{ steps.package.outputs.asset }}
 
+      - name: Build release notes (include all commits)
+        id: notes
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ steps.meta.outputs.tag }}'
+          $target = '${{ steps.meta.outputs.target }}'
+          $repo = '${{ github.repository }}'
+
+          # 计算上一版本 tag（优先按当前 tag 可达历史）
+          $prevTag = ''
+          $tagRefExists = $false
+          try {
+            git rev-parse --verify "refs/tags/$tag" *> $null
+            if ($LASTEXITCODE -eq 0) {
+              $tagRefExists = $true
+            }
+          } catch {
+            $tagRefExists = $false
+          }
+
+          if ($tagRefExists) {
+            try {
+              $prevTag = (git describe --tags --abbrev=0 "$tag^" 2>$null).Trim()
+            } catch {
+              $prevTag = ''
+            }
+          }
+          if (-not $prevTag) {
+            $allTags = @(git tag --sort=-creatordate)
+            foreach ($t in $allTags) {
+              if ($t -and $t.Trim() -ne $tag) {
+                $prevTag = $t.Trim()
+                break
+              }
+            }
+          }
+
+          # 先取 GitHub 自动生成说明（通常偏 PR），再追加全量 commits
+          if ($prevTag) {
+            $generated = gh api "repos/$repo/releases/generate-notes" -f tag_name="$tag" -f target_commitish="$target" -f previous_tag_name="$prevTag" | ConvertFrom-Json
+            $range = "$prevTag..$tag"
+            $compareUrl = "https://github.com/$repo/compare/$prevTag...$tag"
+            $rangeTitle = "变更范围: $prevTag -> $tag"
+          } else {
+            $generated = gh api "repos/$repo/releases/generate-notes" -f tag_name="$tag" -f target_commitish="$target" | ConvertFrom-Json
+            $range = $target
+            $compareUrl = ''
+            $rangeTitle = "变更范围: $target"
+          }
+
+          $commitLines = git log $range --pretty=format:"- %h %s (%an)" --no-color
+          if (-not $commitLines) {
+            $commitLines = '- 无提交记录'
+          }
+
+          $notesFile = 'release_notes.md'
+          $body = @()
+          $body += [string]$generated.body
+          $body += ''
+          $body += '---'
+          $body += ''
+          $body += '## 全量 Commit 差异'
+          $body += $rangeTitle
+          if ($compareUrl) {
+            $body += "Compare: $compareUrl"
+          }
+          $body += ''
+          $body += $commitLines
+
+          Set-Content -LiteralPath $notesFile -Value ($body -join "`n") -Encoding UTF8
+          "notes_file=$notesFile" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -98,12 +172,13 @@ jobs:
           $tag = '${{ steps.meta.outputs.tag }}'
           $target = '${{ steps.meta.outputs.target }}'
           $asset = '${{ steps.package.outputs.asset }}'
+          $notesFile = '${{ steps.notes.outputs.notes_file }}'
 
           if (gh release view $tag *> $null) {
             Write-Host "Release already exists, upload asset with overwrite..."
             gh release upload $tag $asset --clobber
-            gh release edit $tag --title $tag --latest
+            gh release edit $tag --title $tag --notes-file $notesFile --latest
           } else {
             Write-Host "Create new release..."
-            gh release create $tag $asset --target $target --title $tag --generate-notes --latest
+            gh release create $tag $asset --target $target --title $tag --notes-file $notesFile --latest
           }
