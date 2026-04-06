@@ -39,7 +39,8 @@
       "failure_interval_seconds": 60,
       "features": {
         "auto_help": true,
-        "auto_steal": false
+        "auto_steal": false,
+        "auto_accept_request": true
       }
     },
     "share": {

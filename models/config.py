@@ -13,17 +13,20 @@ from utils.app_paths import ensure_user_configs, resolve_config_file, user_confi
 
 class PlantMode(str, Enum):
     """封装 `PlantMode` 相关的数据与行为。"""
+
     PREFERRED = 'preferred'  # 用户手动指定作物
     BEST_EXP_RATE = 'best_exp_rate'  # 当前等级下单位时间经验最高
 
 
 class SellMode(str, Enum):
     """封装 `SellMode` 相关的数据与行为。"""
+
     BATCH_ALL = 'batch_all'  # 批量全部出售
 
 
 class WindowPosition(str, Enum):
     """封装 `WindowPosition` 相关的数据与行为。"""
+
     LEFT_CENTER = 'left_center'
     CENTER = 'center'
     RIGHT_CENTER = 'right_center'
@@ -35,12 +38,14 @@ class WindowPosition(str, Enum):
 
 class WindowPlatform(str, Enum):
     """封装 `WindowPlatform` 相关的数据与行为。"""
+
     QQ = 'qq'
     WECHAT = 'wechat'
 
 
 class RunMode(str, Enum):
     """封装 `RunMode` 相关的数据与行为。"""
+
     FOREGROUND = 'foreground'
     BACKGROUND = 'background'
 
@@ -61,6 +66,7 @@ def resolve_effective_run_mode(run_mode: RunMode | str, window_platform: WindowP
 
 class SellConfig(BaseModel):
     """定义 `SellConfig` 的配置数据结构与默认值。"""
+
     mode: SellMode = SellMode.BATCH_ALL
 
     @field_validator('mode', mode='before')
@@ -72,6 +78,7 @@ class SellConfig(BaseModel):
 
 class SafetyConfig(BaseModel):
     """定义 `SafetyConfig` 的配置数据结构与默认值。"""
+
     random_delay_min: float = 0.1
     random_delay_max: float = 0.3
     click_offset_range: int = 5
@@ -81,6 +88,7 @@ class SafetyConfig(BaseModel):
 
 class ScreenshotConfig(BaseModel):
     """定义 `ScreenshotConfig` 的配置数据结构与默认值。"""
+
     quality: int = 80
     save_history: bool = True
     max_history_count: int = 50
@@ -88,12 +96,14 @@ class ScreenshotConfig(BaseModel):
 
 class TaskTriggerType(str, Enum):
     """封装 `TaskTriggerType` 任务的执行入口与步骤。"""
+
     INTERVAL = 'interval'
     DAILY = 'daily'
 
 
 class TaskScheduleItemConfig(BaseModel):
     """定义 `TaskScheduleItemConfig` 的配置数据结构与默认值。"""
+
     enabled: bool = True
     priority: int = 10
     trigger: TaskTriggerType = TaskTriggerType.INTERVAL
@@ -141,8 +151,10 @@ class TaskScheduleItemConfig(BaseModel):
             return {}
         return {str(k): bool(v) for k, v in value.items()}
 
+
 class ExecutorConfig(BaseModel):
     """定义 `ExecutorConfig` 的配置数据结构与默认值。"""
+
     empty_queue_policy: str = 'stay'
     default_success_interval: int = 30
     default_failure_interval: int = 30
@@ -160,6 +172,7 @@ class ExecutorConfig(BaseModel):
 
 class PlantingConfig(BaseModel):
     """定义 `PlantingConfig` 的配置数据结构与默认值。"""
+
     strategy: PlantMode = PlantMode.BEST_EXP_RATE
     preferred_crop: str = '白萝卜'  # strategy=preferred 时使用
     player_level: int = 10
@@ -169,6 +182,7 @@ class PlantingConfig(BaseModel):
 
 class AppConfig(BaseModel):
     """定义 `AppConfig` 的配置数据结构与默认值。"""
+
     window_title_keyword: str = 'QQ经典农场'
     safety: SafetyConfig = Field(default_factory=SafetyConfig)
     screenshot: ScreenshotConfig = Field(default_factory=ScreenshotConfig)
@@ -195,7 +209,8 @@ class AppConfig(BaseModel):
         if template_path:
             return str(template_path)
         _ = config_path
-        return str(resolve_config_file('config.template.json', prefer_user=True))
+        # 模板优先使用内置版本，避免用户目录旧模板缺失新字段导致 UI/功能不更新。
+        return str(resolve_config_file('config.template.json', prefer_user=False))
 
     @classmethod
     def _resolve_config_path(cls, path: str | None = None) -> str:

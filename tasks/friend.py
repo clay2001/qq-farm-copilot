@@ -9,6 +9,8 @@ from core.base.timer import Timer
 from core.engine.task.registry import TaskResult
 from core.ui.assets import (
     BTN_BUG,
+    BTN_FRIEND_AGREED,
+    BTN_FRIEND_APPLY,
     BTN_HOME,
     BTN_STEAL,
     BTN_VISIT_FIRST,
@@ -49,13 +51,17 @@ class TaskFriend(TaskBase):
         features = self.get_features('friend')
         enable_steal = self.has_feature(features, 'auto_steal')
         enable_help = self.has_feature(features, 'auto_help')
-        logger.info('好友流程: 开始 | 偷菜={} 帮忙={}', enable_steal, enable_help)
+        enable_accept_request = self.has_feature(features, 'auto_accept_request', default=True)
+        logger.info('好友流程: 开始 | 偷菜={} 帮忙={} 同意请求={}', enable_steal, enable_help, enable_accept_request)
         if not enable_steal and not enable_help:
             logger.info('好友流程: 未启用任何功能，结束')
             return self.ok()
 
         # 进入好友列表页
         self.ui.ui_ensure(page_friend)
+        # 处理微信好友请求
+        if enable_accept_request:
+            self.accept_friend()
         # 等待列表加载
         self.wait_list_loading()
 
@@ -267,3 +273,14 @@ class TaskFriend(TaskBase):
             self.ui.device.screenshot()
             if self.ui.appear(BTN_VISIT_FIRST, offset=30):
                 break
+
+    def accept_friend(self):
+        """处理微信好友请求。"""
+        while 1:
+            self.ui.device.screenshot()
+            if not self.ui.appear(BTN_FRIEND_APPLY, offset=30):
+                break
+            if self.ui.appear(BTN_FRIEND_APPLY, offset=30) and self.ui.appear_then_click(
+                BTN_FRIEND_AGREED, offset=30, interval=1
+            ):
+                continue
