@@ -9,6 +9,7 @@ from core.base.timer import Timer
 from core.engine.task.registry import TaskResult
 from core.ui.assets import (
     BTN_BUG,
+    BTN_CLOSE,
     BTN_FRIEND_AGREED,
     BTN_FRIEND_APPLY,
     BTN_HOME,
@@ -282,5 +283,9 @@ class TaskFriend(TaskBase):
                 break
             if self.ui.appear(BTN_FRIEND_APPLY, offset=30) and self.ui.appear_then_click(
                 BTN_FRIEND_AGREED, offset=30, interval=1
+            ):
+                continue
+            if self.ui.appear(BTN_FRIEND_APPLY, offset=30) and self.ui.appear_then_click(
+                BTN_CLOSE, offset=30, interval=1
             ):
                 continue
