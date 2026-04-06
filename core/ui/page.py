@@ -19,6 +19,7 @@ GOTO_MAIN = Button(
 
 class Page:
     """封装 `Page` 相关的数据与行为。"""
+
     parent = None
 
     def __init__(self, check_button, cn_name: str = ''):
@@ -26,16 +27,25 @@ class Page:
         self.check_button = check_button
         self.links = {}
         (_filename, _line, _function, text) = traceback.extract_stack()[-2]
-        self.name = text[: text.find('=')].strip()
+        line = str(text or '')
+        eq_pos = line.find('=')
+        parsed_name = line[:eq_pos].strip() if eq_pos > 0 else ''
+        self.name = parsed_name or f'page_{id(self)}'
         self.cn_name = cn_name or self.name
 
     def __eq__(self, other):
         """定义对象相等比较逻辑。"""
-        return self.name == other.name
+        if not isinstance(other, Page):
+            return False
+        if self.name and other.name and not self.name.startswith('page_') and not other.name.startswith('page_'):
+            return self.name == other.name
+        return self is other
 
     def __hash__(self):
         """定义对象哈希值，支持集合与字典键。"""
-        return hash(self.name)
+        if self.name and not self.name.startswith('page_'):
+            return hash(self.name)
+        return id(self)
 
     def __str__(self):
         """返回对象的可读字符串表示。"""
@@ -84,5 +94,3 @@ page_wiki.link(button=BTN_CLOSE, destination=page_main)
 
 page_main.link(button=MAIN_GOTO_MENU, destination=page_menu)
 page_menu.link(button=MENU_GOTO_MAIN, destination=page_main)
-
-
