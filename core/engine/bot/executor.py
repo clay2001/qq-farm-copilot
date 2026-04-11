@@ -20,6 +20,7 @@ from core.exceptions import GamePageUnknownError, LoginRepeatError, TaskRetryCur
 from core.platform.device import DeviceStuckError, DeviceTooManyClickError
 from models.config import TaskTriggerType
 from tasks.friend import TaskFriend
+from tasks.gift import TaskGift
 from tasks.main import TaskMain
 from tasks.sell import TaskSell
 from tasks.share import TaskShare
@@ -404,6 +405,15 @@ class BotExecutorMixin:
             return err or TaskResult(success=False, error='窗口未找到')
         self._reset_device_runtime_guards()
         task = TaskSell(engine=self, ui=self.ui)
+        return task.run(rect=rect)
+
+    def _run_task_gift(self, _ctx: TaskContext) -> TaskResult:
+        """执行 `task_gift` 子流程。"""
+        rect, err = self._prepare_task_scene('gift')
+        if err is not None or rect is None:
+            return err or TaskResult(success=False, error='窗口未找到')
+        self._reset_device_runtime_guards()
+        task = TaskGift(engine=self, ui=self.ui)
         return task.run(rect=rect)
 
     def _on_executor_snapshot(self, snapshot: TaskSnapshot):

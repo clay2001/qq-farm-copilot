@@ -24,6 +24,7 @@
 - `main`：农场主流程（收获维护、播种、扩建、出售、任务奖励、好友求助入口）
 - `friend`：独立好友任务
 - `share`：独立分享/任务奖励任务（通常配合每日触发）
+- `gift`：物品领取任务（QQSVIP礼包、商城礼包、可选邮件领取；支持分项开关）
 
 ## 已实现功能
 
@@ -34,8 +35,9 @@
 - [x] 仓库批量出售
 - [ ] 任务奖励领取
 - [ ] 分享奖励领取
-- [ ] 商城免费礼包购买
-- [ ] QQSvip礼包领取
+- [x] 商城免费商品领取
+- [x] QQSVIP礼包领取
+- [x] 邮件领取
 - [x] 好友农场偷菜
 - [x] 好友农场帮忙
 - [x] 自动同步等级
@@ -160,6 +162,19 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
     "failure_interval_seconds": 300,
     "features": {
       "auto_task": false
+    }
+  },
+  "gift": {
+    "enabled": true,
+    "priority": 35,
+    "trigger": "daily",
+    "daily_time": "04:00",
+    "interval_seconds": 86400,
+    "failure_interval_seconds": 300,
+    "features": {
+      "auto_svip_gift": true,
+      "auto_mall_gift": true,
+      "auto_mail": true
     }
   }
 }
