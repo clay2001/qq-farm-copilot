@@ -100,12 +100,12 @@ python main.py
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-### VSCode 调试使用项目根目录配置
+### VSCode 调试使用独立实例目录
 
 - 在 VSCode `launch.json` 的 `env` 设置 `QFARM_DEV=true`。
-- 开启后 `AppConfig` 会优先读取项目根目录配置文件：`configs/config.json`。
 - 开启后实例元数据与实例目录会隔离到项目内：`.dev_appdata/QQFarmCopilot/`。
-- 设置 `QFARM_DEV=false`（或不设置）后，恢复默认实例配置路径：`%APPDATA%\QQFarmCopilot\instances\<instance_id>\configs\config.json`。
+- 调试与发布版都使用实例配置路径：`<instances>/<instance_id>/configs/config.json`。
+- 设置 `QFARM_DEV=false`（或不设置）后，实例目录恢复到 `%APPDATA%\QQFarmCopilot\instances\`。
 
 ### 首次运行建议检查
 
@@ -230,7 +230,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ## 新增任务（当前实现方式）
 
 1. 在 `core/engine/bot/executor.py` 增加 `_run_task_<name>` 方法
-2. 在 `configs/config.json` 的 `tasks` 增加 `<name>` 配置
+2. 在实例配置 `instances/<instance_id>/configs/config.json` 的 `tasks` 增加 `<name>` 配置
 3. （可选）在 `configs/ui_labels.json` 增加任务与功能文案
 
 执行器会自动发现 `_run_task_*` 并参与调度。

@@ -12,9 +12,7 @@ from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from utils.app_paths import (
     ensure_user_configs,
     instance_config_file,
-    is_dev_runtime_enabled,
     resolve_config_file,
-    resolve_runtime_path,
 )
 
 
@@ -275,11 +273,6 @@ class AppConfig(BaseModel):
         return {}
 
     @classmethod
-    def _is_project_root_config_enabled(cls) -> bool:
-        """是否启用项目根目录配置（用于本地开发调试）。"""
-        return is_dev_runtime_enabled()
-
-    @classmethod
     def _resolve_template_path(cls, config_path: str, template_path: str | None = None) -> str:
         """解析并计算 `template_path` 的最终结果。"""
         if template_path:
@@ -291,23 +284,18 @@ class AppConfig(BaseModel):
     @classmethod
     def _resolve_config_path(cls, path: str | None = None) -> str:
         """解析并计算用户配置文件路径。"""
-        if cls._is_project_root_config_enabled():
-            # VSCode 调试等开发场景：统一走仓库根目录配置，便于快速验证。
-            return str(resolve_runtime_path('configs', 'config.json'))
-
         raw = str(path or '').strip()
-        if not raw:
-            return str(instance_config_file('default'))
+        if raw:
+            candidate = Path(raw)
+            if candidate.is_absolute():
+                return str(candidate)
 
-        candidate = Path(raw)
-        if candidate.is_absolute():
-            return str(candidate)
-
-        norm = raw.replace('\\', '/')
-        if norm.startswith('configs/'):
-            # 不再依赖旧版共享 configs 目录，统一回落到 default 实例配置。
-            return str(instance_config_file('default'))
-        return str(candidate.resolve())
+            norm = raw.replace('\\', '/')
+            if norm.startswith('configs/'):
+                # 不再使用项目根共享配置，统一回落到 default 实例配置。
+                return str(instance_config_file('default'))
+            return str(candidate.resolve())
+        return str(instance_config_file('default'))
 
     @classmethod
     def _deep_merge_dict(cls, base: dict, override: dict) -> dict:
@@ -377,7 +365,7 @@ class AppConfig(BaseModel):
         return 'auto'
 
     @classmethod
-    def load(cls, path: str = 'configs/config.json', template_path: str | None = None) -> 'AppConfig':
+    def load(cls, path: str | None = None, template_path: str | None = None) -> 'AppConfig':
         """从配置文件加载并构建配置对象。"""
         ensure_user_configs()
 
@@ -409,5 +397,5 @@ class AppConfig(BaseModel):
 
     def save(self, path: str | None = None):
         """将当前配置对象写回文件。"""
-        p = self._resolve_config_path(path or self._config_path or 'configs/config.json')
+        p = self._resolve_config_path(path or self._config_path)
         self._atomic_write_json(p, self.model_dump())
