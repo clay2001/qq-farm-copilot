@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from models.config import resolve_task_min_interval_seconds
+
 if TYPE_CHECKING:
     from models.config import AppConfig
 
@@ -54,8 +56,9 @@ class TaskContext:
 def build_default_tasks(config: 'AppConfig') -> dict[str, TaskItem]:
     """构建 `default tasks` 结构。"""
     now = datetime.now()
-    default_success = max(1, int(config.executor.default_success_interval))
-    default_failure = max(1, int(config.executor.default_failure_interval))
+    min_interval = resolve_task_min_interval_seconds(config.executor)
+    default_success = max(min_interval, int(config.executor.default_success_interval))
+    default_failure = max(min_interval, int(config.executor.default_failure_interval))
     max_failures = max(1, int(config.executor.max_failures))
     tasks_cfg = getattr(config, 'tasks', None)
     if tasks_cfg is None:
@@ -79,8 +82,14 @@ def build_default_tasks(config: 'AppConfig') -> dict[str, TaskItem]:
             enabled=bool(getattr(cfg, 'enabled', True)),
             priority=max(1, int(getattr(cfg, 'priority', index * 10))),
             next_run=now,
-            success_interval=max(default_success, int(getattr(cfg, 'interval_seconds', default_success))),
-            failure_interval=max(default_failure, int(getattr(cfg, 'failure_interval_seconds', default_failure))),
+            success_interval=max(
+                min_interval,
+                int(getattr(cfg, 'interval_seconds', default_success)),
+            ),
+            failure_interval=max(
+                min_interval,
+                int(getattr(cfg, 'failure_interval_seconds', default_failure)),
+            ),
             max_failures=max_failures,
         )
     return out

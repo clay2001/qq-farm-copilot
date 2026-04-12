@@ -181,14 +181,16 @@ class TaskExecutor:
         if result.success:
             task.failure_count = 0
             interval = int(task.success_interval)
+            min_interval = int(task.success_interval)
         else:
             task.failure_count += 1
             interval = int(task.failure_interval)
+            min_interval = int(task.failure_interval)
 
         # 对齐 NIKKE task_delay 语义：任务显式给出下一次延迟时优先使用。
         if result.next_run_seconds is not None:
             interval = int(result.next_run_seconds)
-        task.next_run = now + timedelta(seconds=max(1, interval))
+        task.next_run = now + timedelta(seconds=max(1, min_interval, interval))
 
     def _loop(self):
         """执行器主循环：挑选任务、执行任务、回写结果并推送快照。"""

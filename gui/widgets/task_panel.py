@@ -19,7 +19,12 @@ from PyQt6.QtWidgets import (
 )
 
 from gui.widgets.no_wheel_combo_box import NoWheelComboBox
-from models.config import DEFAULT_TASK_NEXT_RUN, AppConfig, TaskTriggerType
+from models.config import (
+    DEFAULT_TASK_NEXT_RUN,
+    AppConfig,
+    TaskTriggerType,
+    resolve_task_min_interval_seconds,
+)
 from utils.app_paths import load_config_json_object
 
 
@@ -307,7 +312,11 @@ class TaskPanel(QWidget):
             if isinstance(interval_value, QSpinBox) and isinstance(interval_unit, QComboBox):
                 task_cfg.trigger = TaskTriggerType.INTERVAL
                 unit_factor = int(interval_unit.currentData() or 1)
-                task_cfg.interval_seconds = max(1, int(interval_value.value()) * max(1, unit_factor))
+                min_interval = self._task_min_interval_seconds()
+                task_cfg.interval_seconds = max(
+                    min_interval,
+                    int(interval_value.value()) * max(1, unit_factor),
+                )
 
             daily_time = widgets.get('daily_time')
             if isinstance(daily_time, QTimeEdit):
@@ -341,7 +350,7 @@ class TaskPanel(QWidget):
             interval_value = widgets.get('interval_value')
             interval_unit = widgets.get('interval_unit')
             if isinstance(interval_value, QSpinBox) and isinstance(interval_unit, QComboBox):
-                seconds = max(1, int(task_cfg.interval_seconds))
+                seconds = max(self._task_min_interval_seconds(), int(task_cfg.interval_seconds))
                 display_value, unit_factor = self._split_interval_for_display(seconds)
                 self._set_combo_data(interval_unit, unit_factor)
                 interval_value.setValue(display_value)
@@ -379,10 +388,13 @@ class TaskPanel(QWidget):
         self._load_config()
         self._loading = False
 
-    @staticmethod
-    def _split_interval_for_display(seconds: int) -> tuple[int, int]:
+    def _task_min_interval_seconds(self) -> int:
+        """获取当前配置生效的任务最小执行间隔（秒）。"""
+        return resolve_task_min_interval_seconds(self.config.executor)
+
+    def _split_interval_for_display(self, seconds: int) -> tuple[int, int]:
         """将秒数拆分为界面可读的值与单位。"""
-        value = max(1, int(seconds))
+        value = max(self._task_min_interval_seconds(), int(seconds))
         if value % 3600 == 0:
             return value // 3600, 3600
         if value % 60 == 0:

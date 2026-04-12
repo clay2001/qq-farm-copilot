@@ -102,7 +102,17 @@ class TaskTriggerType(str, Enum):
     DAILY = 'daily'
 
 
+DEFAULT_MIN_TASK_INTERVAL_SECONDS = 5
 DEFAULT_TASK_NEXT_RUN = '2026-01-01 00:00'
+
+
+def resolve_task_min_interval_seconds(executor_cfg) -> int:
+    """解析任务最小执行间隔（秒）。"""
+    try:
+        value = int(getattr(executor_cfg, 'min_task_interval_seconds', DEFAULT_MIN_TASK_INTERVAL_SECONDS))
+    except Exception:
+        value = DEFAULT_MIN_TASK_INTERVAL_SECONDS
+    return max(1, value)
 
 
 class TaskScheduleItemConfig(BaseModel):
@@ -175,9 +185,10 @@ class TaskScheduleItemConfig(BaseModel):
 class ExecutorConfig(BaseModel):
     """定义 `ExecutorConfig` 的配置数据结构与默认值。"""
 
+    min_task_interval_seconds: int = DEFAULT_MIN_TASK_INTERVAL_SECONDS
     empty_queue_policy: str = 'stay'
-    default_success_interval: int = 30
-    default_failure_interval: int = 30
+    default_success_interval: int = DEFAULT_MIN_TASK_INTERVAL_SECONDS
+    default_failure_interval: int = DEFAULT_MIN_TASK_INTERVAL_SECONDS
     max_failures: int = 3
 
     @field_validator('empty_queue_policy', mode='before')
@@ -188,6 +199,18 @@ class ExecutorConfig(BaseModel):
         if text not in {'stay', 'goto_main'}:
             return 'stay'
         return text
+
+    @field_validator('min_task_interval_seconds', mode='before')
+    @classmethod
+    def _normalize_min_task_interval(cls, value):
+        """规范化任务最小执行间隔（秒）。"""
+        return max(1, int(value))
+
+    @field_validator('default_success_interval', 'default_failure_interval', mode='before')
+    @classmethod
+    def _normalize_default_intervals(cls, value):
+        """规范化执行器默认间隔（秒）。"""
+        return max(1, int(value))
 
 
 class PlantingConfig(BaseModel):

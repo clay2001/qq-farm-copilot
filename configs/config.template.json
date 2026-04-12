@@ -84,9 +84,10 @@
     }
   },
   "executor": {
+    "min_task_interval_seconds": 5,
     "empty_queue_policy": "stay",
-    "default_success_interval": 30,
-    "default_failure_interval": 30,
+    "default_success_interval": 5,
+    "default_failure_interval": 5,
     "max_failures": 3
   },
   "planting": {

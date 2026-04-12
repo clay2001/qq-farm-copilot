@@ -57,6 +57,7 @@
 
 - `trigger=interval`：按 `interval_seconds`。
 - `trigger=daily`：按 `daily_time` 计算距离下一次秒数。
+- `interval_seconds` / `failure_interval_seconds` 生效下限为 `executor.min_task_interval_seconds`（默认 `5` 秒）。
 - `TaskResult.next_run_seconds` 若设置，会覆盖本次默认成功/失败间隔。
 - 执行器每次计算后的 `next_run` 会回写 `config.tasks.<name>.next_run`。
 
@@ -177,10 +178,10 @@
 - `enabled: bool`
 - `priority: int`（>=1）
 - `trigger: "interval" | "daily"`
-- `interval_seconds: int`（>=1）
+- `interval_seconds: int`（>=1，实际生效下限见 `executor.min_task_interval_seconds`）
 - `daily_time: "HH:MM"`
 - `next_run: "YYYY-MM-DD HH:MM[:SS]"`（默认 `2026-01-01 00:00`）
-- `failure_interval_seconds: int`（>=1）
+- `failure_interval_seconds: int`（>=1，实际生效下限见 `executor.min_task_interval_seconds`）
 - `features: {str: bool}`
 
 ## 7. 修改边界与禁令

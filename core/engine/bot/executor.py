@@ -19,7 +19,7 @@ from core.engine.task.registry import (
 )
 from core.exceptions import GamePageUnknownError, LoginRepeatError, TaskRetryCurrentError
 from core.platform.device import DeviceStuckError, DeviceTooManyClickError
-from models.config import TaskTriggerType
+from models.config import TaskTriggerType, resolve_task_min_interval_seconds
 from tasks.friend import TaskFriend
 from tasks.gift import TaskGift
 from tasks.main import TaskMain
@@ -165,8 +165,9 @@ class BotExecutorMixin:
     ) -> dict[str, TaskItem]:
         """按配置 + runner 自动生成初始任务表。"""
         now = datetime.now()
-        default_success = max(1, int(self.config.executor.default_success_interval))
-        default_failure = max(1, int(self.config.executor.default_failure_interval))
+        min_interval = resolve_task_min_interval_seconds(self.config.executor)
+        default_success = max(min_interval, int(self.config.executor.default_success_interval))
+        default_failure = max(min_interval, int(self.config.executor.default_failure_interval))
         max_failures = max(1, int(self.config.executor.max_failures))
 
         task_names = self._iter_task_config_names()
@@ -184,11 +185,11 @@ class BotExecutorMixin:
             priority = int(getattr(cfg, 'priority', index * 10))
 
             success_interval = max(
-                default_success,
+                min_interval,
                 int(getattr(cfg, 'interval_seconds', default_success)),
             )
             failure_interval = max(
-                default_failure,
+                min_interval,
                 int(getattr(cfg, 'failure_interval_seconds', default_failure)),
             )
 
@@ -277,12 +278,13 @@ class BotExecutorMixin:
     def _task_seconds_by_trigger(self, task_name: str, now: datetime | None = None) -> int:
         """按任务触发类型返回下次调度间隔秒数。"""
         current = now or datetime.now()
+        min_interval = resolve_task_min_interval_seconds(self.config.executor)
         cfg = self._get_task_cfg(task_name)
         if cfg is None:
-            return int(self.config.executor.default_success_interval)
+            return max(min_interval, int(self.config.executor.default_success_interval))
         if cfg.trigger == TaskTriggerType.DAILY:
             return self._seconds_to_next_daily(cfg.daily_time, current)
-        return max(1, int(cfg.interval_seconds))
+        return max(min_interval, int(cfg.interval_seconds))
 
     def get_task_features(self, task_name: str) -> dict[str, bool]:
         """获取 `task_features` 信息。"""
@@ -305,8 +307,9 @@ class BotExecutorMixin:
         if not self._executor_tasks:
             return
         # 统一按当前配置计算每个任务的启停状态与执行间隔。
-        default_success = max(1, int(self.config.executor.default_success_interval))
-        default_failure = max(1, int(self.config.executor.default_failure_interval))
+        min_interval = resolve_task_min_interval_seconds(self.config.executor)
+        default_success = max(min_interval, int(self.config.executor.default_success_interval))
+        default_failure = max(min_interval, int(self.config.executor.default_failure_interval))
         max_failures = max(1, int(self.config.executor.max_failures))
         now = datetime.now()
         runners = runners or self._collect_task_runners()
@@ -324,11 +327,11 @@ class BotExecutorMixin:
             enabled = bool(has_runner) if cfg is None else bool(cfg.enabled and has_runner)
             priority = int(getattr(cfg, 'priority', index * 10))
             success_interval = max(
-                default_success,
+                min_interval,
                 int(getattr(cfg, 'interval_seconds', default_success)),
             )
             failure_interval = max(
-                default_failure,
+                min_interval,
                 int(getattr(cfg, 'failure_interval_seconds', default_failure)),
             )
             kwargs = {

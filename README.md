@@ -124,7 +124,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 - `window_select_rule`：窗口选择规则（`auto` 或 `index:N`，`auto` 会按当前平台优先匹配）
 - `safety`：运行方式、随机延迟、点击抖动、单轮点击上限、`debug_log_enabled`
 - `planting`：种植策略、等级、平台、窗口位置、`warehouse_first`（仓库优先选种）、等级 OCR 开关
-- `executor`：空队列策略、默认间隔、最大失败次数
+- `executor`：空队列策略、默认间隔、最大失败次数、`min_task_interval_seconds`（任务最小执行间隔）
 - `tasks`：动态任务字典
 - `tasks.<task>.next_run`：任务下次执行时间（持久化到配置，默认 `2026-01-01 00:00`）
 
@@ -191,6 +191,7 @@ pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 - 到期任务按 `priority` 从小到大执行
 - 任务执行后按成功/失败间隔或 `TaskResult.next_run_seconds` 计算下一次执行
+- `interval_seconds` / `failure_interval_seconds` 生效下限为 `executor.min_task_interval_seconds`（默认 `5` 秒）
 - 每次计算出的下次执行时间会回写到 `tasks.<task>.next_run`
 - `DAILY` 与 `INTERVAL` 共用同一套执行器队列
 
