@@ -724,21 +724,36 @@ class TaskMain(TaskBase):
             logger.info('自动播种流程: 仓库优先已启用，仓库无目标种子 {}，前往商店购买', crop_name)
             buy_result = self._buy_seeds(crop_name)
             if buy_result:
-                # 购买完成后，用更低的阈值0.6重新匹配所有种子，选择分数最高的
+                # 购买完成后，用更低的阈值0.6重新匹配所有目标种子
                 cv_img = self.ui.device.screenshot()
                 seed_dets = self.engine.cv_detector.detect_seed_template(
                     cv_img, threshold=0.6, crop_name_or_template=crop_name
                 )
                 if seed_dets:
-                    # 选择分数最高的种子
-                    seed_det = max(seed_dets, key=lambda d: d.confidence)
-                    logger.info(
-                        '自动播种流程: 购买完成，用低阈值匹配到目标种子 | crop={} center=({}, {}) confidence={:.2f}',
-                        crop_name,
-                        int(seed_det.x),
-                        int(seed_det.y),
-                        seed_det.confidence,
-                    )
+                    # 按x坐标从左到右排序，选择第一个非活动种子
+                    seed_dets_sorted = sorted(seed_dets, key=lambda d: float(d.x))
+                    # 获取需要排除的事件种子名称
+                    excluded_names = self._get_seed_buttons_for_exclusion(skip_event_crops=skip_event_crops)
+                    excluded_names_set = set(btn.name for btn in excluded_names)
+                    # 找到第一个不是活动种子的检测结果
+                    for sd in seed_dets_sorted:
+                        if sd.name not in excluded_names_set:
+                            seed_det = sd
+                            logger.info(
+                                '自动播种流程: 购买完成，选择非活动种子 | crop={} center=({}, {}) confidence={:.2f}',
+                                seed_det.name,
+                                int(seed_det.x),
+                                int(seed_det.y),
+                                seed_det.confidence,
+                            )
+                            break
+                    if seed_det is None:
+                        # 所有匹配都是活动种子，选择最左边的
+                        seed_det = seed_dets_sorted[0]
+                        logger.warning(
+                            '自动播种流程: 购买完成，所有匹配都是活动种子，使用最左边 | crop={}',
+                            seed_det.name,
+                        )
                 else:
                     logger.warning('自动播种流程: 购买后低阈值匹配失败，尝试选择最左种子')
                     # 兜底：选择最左边的可用种子
