@@ -724,34 +724,42 @@ class TaskMain(TaskBase):
             logger.info('自动播种流程: 仓库优先已启用，仓库无目标种子 {}，前往商店购买', crop_name)
             buy_result = self._buy_seeds(crop_name)
             if buy_result:
-                # 购买完成后，新买的种子会在仓库最左边，直接选择最左边的种子种植
+                # 购买完成后，用更低的阈值0.6重新匹配所有种子，选择分数最高的
                 cv_img = self.ui.device.screenshot()
-                number_items = self._detect_seed_number_items(cv_img, seed_popup_land)
-                if number_items:
-                    # 排除事件作物后取最左边的可用种子
-                    active_excluded_indexes = self._collect_excluded_seed_item_indexes(
-                        number_items,
-                        skip_event_crops=skip_event_crops,
+                seed_dets = self.engine.cv_detector.detect_seed_template(
+                    cv_img, threshold=0.6, crop_name_or_template=crop_name
+                )
+                if seed_dets:
+                    # 选择分数最高的种子
+                    seed_det = max(seed_dets, key=lambda d: d.confidence)
+                    logger.info(
+                        '自动播种流程: 购买完成，用低阈值匹配到目标种子 | crop={} center=({}, {}) confidence={:.2f}',
+                        crop_name,
+                        int(seed_det.x),
+                        int(seed_det.y),
+                        seed_det.confidence,
                     )
-                    available_items = [item for idx, item in enumerate(number_items) if int(idx) not in active_excluded_indexes]
-                    if available_items:
-                        left_seed = min(available_items, key=lambda item: float(item.box[0] + item.box[2] / 2.0))
-                        # 创建DetectResult对象，直接使用最左边种子的中心坐标
-                        seed_det = DetectResult(
-                            name=left_seed.name,
-                            category='seed',
-                            x=int(left_seed.box[0] + left_seed.box[2] / 2.0),
-                            y=int(left_seed.box[1] + left_seed.box[3] / 2.0),
-                            w=int(left_seed.box[2]),
-                            h=int(left_seed.box[3]),
-                            confidence=1.0,
+                else:
+                    logger.warning('自动播种流程: 购买后低阈值匹配失败，尝试选择最左种子')
+                    # 兜底：选择最左边的可用种子
+                    number_items = self._detect_seed_number_items(cv_img, seed_popup_land)
+                    if number_items:
+                        active_excluded_indexes = self._collect_excluded_seed_item_indexes(
+                            number_items,
+                            skip_event_crops=skip_event_crops,
                         )
-                        logger.info(
-                            '自动播种流程: 购买完成，直接使用最左种子种植 | crop={} center=({}, {})',
-                            seed_det.name,
-                            int(seed_det.x),
-                            int(seed_det.y),
-                        )
+                        available_items = [item for idx, item in enumerate(number_items) if int(idx) not in active_excluded_indexes]
+                        if available_items:
+                            left_seed = min(available_items, key=lambda item: float(item.box[0] + item.box[2] / 2.0))
+                            seed_det = DetectResult(
+                                name=left_seed.name,
+                                category='seed',
+                                x=int(left_seed.box[0] + left_seed.box[2] / 2.0),
+                                y=int(left_seed.box[1] + left_seed.box[3] / 2.0),
+                                w=int(left_seed.box[2]),
+                                h=int(left_seed.box[3]),
+                                confidence=1.0,
+                            )
                 if seed_det is None:
                     logger.warning('自动播种流程: 购买后未能识别种子，结束本轮播种')
                     return
