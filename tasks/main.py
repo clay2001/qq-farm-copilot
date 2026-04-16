@@ -663,17 +663,53 @@ class TaskMain(TaskBase):
                 )
             available_items = [item for idx, item in enumerate(number_items) if int(idx) not in active_excluded_indexes]
             if available_items:
-                left_seed = min(available_items, key=lambda item: float(item.box[0] + item.box[2] / 2.0))
-                left_center_x = int(left_seed.box[0] + left_seed.box[2] / 2.0)
-                left_center_y = int(left_seed.box[1] + left_seed.box[3] / 2.0)
-                seed_drag_point = (left_center_x, left_center_y)
-                logger.info(
-                    '自动播种流程: 仓库优先已启用，使用最左数字块 | box={} text={} score={:.3f} drag_point={}',
-                    left_seed.box,
-                    left_seed.text,
-                    left_seed.score,
-                    seed_drag_point,
+                # 先尝试用模板匹配查找用户配置的作物
+                cv_img = self.ui.device.screenshot()
+                seed_dets = self.engine.cv_detector.detect_seed_template(
+                    cv_img, threshold=0.8, crop_name_or_template=crop_name
                 )
+                if seed_dets:
+                    seed_det = seed_dets[0]
+                    logger.info(
+                        '自动播种流程: 仓库优先已启用，识别到目标种子 | crop={} center=({}, {})',
+                        crop_name,
+                        int(seed_det.x),
+                        int(seed_det.y),
+                    )
+                else:
+                    # 模板匹配没找到，验证最左种子是否匹配
+                    left_seed = min(available_items, key=lambda item: float(item.box[0] + item.box[2] / 2.0))
+                    left_center_x = int(left_seed.box[0] + left_seed.box[2] / 2.0)
+                    left_center_y = int(left_seed.box[1] + left_seed.box[3] / 2.0)
+                    # 在最左种子附近区域检测是否匹配配置的作物
+                    roi = (
+                        max(0, left_center_x - 30),
+                        max(0, left_center_y - 30),
+                        left_center_x + 30,
+                        left_center_y + 30,
+                    )
+                    cv_img = self.ui.device.screenshot()
+                    seed_dets_at_left = self.engine.cv_detector.detect_seed_template(
+                        cv_img, threshold=0.8, crop_name_or_template=crop_name, roi=roi
+                    )
+                    if seed_dets_at_left:
+                        # 最左种子就是用户想要的作物
+                        seed_det = seed_dets_at_left[0]
+                        logger.info(
+                            '自动播种流程: 仓库优先已启用，最左种子匹配目标作物 | crop={} center=({}, {})',
+                            crop_name,
+                            int(seed_det.x),
+                            int(seed_det.y),
+                        )
+                    else:
+                        # 最左种子不是用户想要的作物，放弃仓库购买
+                        logger.warning(
+                            '自动播种流程: 仓库优先已启用，仓库种子不是目标作物 {}，将购买 | left_center=({}, {})',
+                            crop_name,
+                            left_center_x,
+                            left_center_y,
+                        )
+                        seed_drag_point = None
             else:
                 logger.warning(
                     '自动播种流程: 仓库优先已启用，但未识别到可用数字块 | total={} excluded={} skip_event_crops={}',
