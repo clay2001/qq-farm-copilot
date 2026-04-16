@@ -8,6 +8,7 @@ from loguru import logger
 
 from core.base.timer import Timer
 from core.engine.task.registry import TaskResult
+from core.vision.cv_detector import DetectResult
 from core.exceptions import BuySeedError
 from core.ui.assets import *
 from core.ui.page import GOTO_MAIN, page_main, page_shop
@@ -718,7 +719,45 @@ class TaskMain(TaskBase):
                     skip_event_crops,
                 )
 
-        if seed_drag_point is None:
+        if seed_drag_point is None and seed_det is None and use_warehouse_first:
+            # 仓库没有目标种子，去商店购买
+            logger.info('自动播种流程: 仓库优先已启用，仓库无目标种子 {}，前往商店购买', crop_name)
+            buy_result = self._buy_seeds(crop_name)
+            if buy_result:
+                # 购买完成后，新买的种子会在仓库最左边，直接选择最左边的种子种植
+                cv_img = self.ui.device.screenshot()
+                number_items = self._detect_seed_number_items(cv_img, seed_popup_land)
+                if number_items:
+                    # 排除事件作物后取最左边的可用种子
+                    active_excluded_indexes = self._collect_excluded_seed_item_indexes(
+                        number_items,
+                        skip_event_crops=skip_event_crops,
+                    )
+                    available_items = [item for idx, item in enumerate(number_items) if int(idx) not in active_excluded_indexes]
+                    if available_items:
+                        left_seed = min(available_items, key=lambda item: float(item.box[0] + item.box[2] / 2.0))
+                        # 创建DetectResult对象，直接使用最左边种子的中心坐标
+                        seed_det = DetectResult(
+                            name=left_seed.name,
+                            category='seed',
+                            x=int(left_seed.box[0] + left_seed.box[2] / 2.0),
+                            y=int(left_seed.box[1] + left_seed.box[3] / 2.0),
+                            w=int(left_seed.box[2]),
+                            h=int(left_seed.box[3]),
+                            confidence=1.0,
+                        )
+                        logger.info(
+                            '自动播种流程: 购买完成，直接使用最左种子种植 | crop={} center=({}, {})',
+                            seed_det.name,
+                            int(seed_det.x),
+                            int(seed_det.y),
+                        )
+                if seed_det is None:
+                    logger.warning('自动播种流程: 购买后未能识别种子，结束本轮播种')
+                    return
+
+        # 非仓库优先模式或仓库优先但购买也失败后，使用模板循环匹配
+        if seed_drag_point is None and seed_det is None:
             while 1:
                 cv_img = self.ui.device.screenshot()
                 # 使用原始模板图匹配种子
